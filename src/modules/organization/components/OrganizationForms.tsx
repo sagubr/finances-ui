@@ -2,8 +2,13 @@ import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import {
+  getActiveWorkspaceBaseCurrency,
+  workspaceAccessStore,
+} from '@/modules/workspaces/store/workspace-access.store'
 import { todayCivilDate } from '@/utils/date'
 import { useForm } from '@tanstack/react-form'
+import { useStore } from '@tanstack/react-store'
 import { z } from 'zod'
 import { organizationApi } from '../api/organization.api'
 import type { Activity, Goal, WishlistItem } from '../models/organization.types'
@@ -214,13 +219,14 @@ export const WishlistForm = ({
         : Promise.reject(new Error('Missing wishlist item')),
   )
   const mutation = item ? updateMutation : createMutation
+  const baseCurrency = useStore(workspaceAccessStore, getActiveWorkspaceBaseCurrency)
   const form = useForm({
     defaultValues: {
       name: item?.name ?? '',
       price: item?.estimatedPriceCents
         ? (item.estimatedPriceCents / 100).toFixed(2).replace('.', ',')
         : '',
-      currency: item?.currency ?? 'BRL',
+      currency: item?.currency ?? baseCurrency ?? '',
     },
     validators: { onSubmit: wishlistFormSchema },
     onSubmit: async ({ value, formApi }) => {
@@ -289,7 +295,7 @@ export const WishlistForm = ({
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={readOnly || mutation.isPending}>
+        <Button type="submit" disabled={readOnly || mutation.isPending || (!item && !baseCurrency)}>
           {mutation.isPending ? 'Salvando…' : item ? 'Salvar alterações' : 'Adicionar desejo'}
         </Button>
       </DialogFooter>

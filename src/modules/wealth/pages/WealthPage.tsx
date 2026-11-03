@@ -1,3 +1,8 @@
+import {
+  ResourceCollectionSkeleton,
+  ResourceEmptyState,
+} from '@/components/ResourceCollectionState'
+import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
 import Table from '@/components/Table'
 import { TooltipButton } from '@/components/TooltipButton'
@@ -179,7 +184,26 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
             createLabel="Registrar ordem"
             createDisabled={readOnly}
           />
-          {positionView === 'list' ? (
+          {positions.isPending ? (
+            <ResourceCollectionSkeleton viewMode={positionView} />
+          ) : positions.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar as posições"
+              error={positions.error}
+              fallbackMessage="Tente carregar suas posições novamente."
+              onRetry={() => void positions.refetch()}
+              isRetrying={positions.isFetching}
+            />
+          ) : positions.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhuma posição de investimento"
+              description="Registre uma ordem para começar a acompanhar sua carteira de investimentos."
+              actionLabel="Registrar ordem"
+              onAction={() => setDialog('order')}
+              actionDisabled={readOnly}
+            />
+          ) : positionView === 'list' ? (
             <div className="h-[500px] rounded-xl border">
               <Table<Position>
                 columns={positionColumns}
@@ -231,7 +255,25 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
             onCreate={() => void navigate({ to: '/accounts' })}
             createLabel="Gerenciar contas"
           />
-          {accountView === 'list' ? (
+          {accounts.isPending ? (
+            <ResourceCollectionSkeleton viewMode={accountView} />
+          ) : accounts.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar as contas de investimento"
+              error={accounts.error}
+              fallbackMessage="Tente carregar suas contas novamente."
+              onRetry={() => void accounts.refetch()}
+              isRetrying={accounts.isFetching}
+            />
+          ) : accounts.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhuma conta de investimento"
+              description="Cadastre uma conta do tipo Investimentos para registrar ordens e posições."
+              actionLabel="Gerenciar contas"
+              onAction={() => void navigate({ to: '/accounts' })}
+            />
+          ) : accountView === 'list' ? (
             <div className="h-[500px] rounded-xl border">
               <Table<InvestmentAccount>
                 columns={accountColumns}
@@ -290,7 +332,26 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
             createLabel="Novo bem"
             createDisabled={readOnly}
           />
-          {assetView === 'list' ? (
+          {assets.isPending ? (
+            <ResourceCollectionSkeleton viewMode={assetView} />
+          ) : assets.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar os bens"
+              error={assets.error}
+              fallbackMessage="Tente carregar seus bens novamente."
+              onRetry={() => void assets.refetch()}
+              isRetrying={assets.isFetching}
+            />
+          ) : assets.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhum bem cadastrado"
+              description="Cadastre imóveis, veículos e outros bens que compõem seu patrimônio."
+              actionLabel="Cadastrar bem"
+              onAction={() => setDialog('asset')}
+              actionDisabled={readOnly}
+            />
+          ) : assetView === 'list' ? (
             <div className="h-[500px] rounded-xl border">
               <Table<Asset>
                 columns={assetColumns}

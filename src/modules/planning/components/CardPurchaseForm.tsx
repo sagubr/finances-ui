@@ -1,3 +1,5 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
+import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
@@ -49,6 +51,8 @@ export const CardPurchaseForm = ({
   const mutation = useCreateCardPurchase()
   const updateMutation = useUpdateCardPurchase()
   const isPending = mutation.isPending || updateMutation.isPending
+  const resourcesPending = categories.isPending || (!card && cards.isPending)
+  const resourceError = categories.error ?? (!card ? cards.error : null)
   const form = useForm({
     defaultValues: {
       cardId: card?.id ?? '',
@@ -88,8 +92,9 @@ export const CardPurchaseForm = ({
             const invalid = field.state.meta.isTouched && !field.state.meta.isValid
             return (
               <Field data-invalid={invalid} className="sm:col-span-2">
-                <FieldLabel>Cartão</FieldLabel>
+                <FieldLabel htmlFor={field.name}>Cartão</FieldLabel>
                 <SearchableSelect
+                  id={field.name}
                   value={field.state.value}
                   onValueChange={field.handleChange}
                   placeholder="Selecione um cartão"
@@ -128,8 +133,9 @@ export const CardPurchaseForm = ({
           const invalid = field.state.meta.isTouched && !field.state.meta.isValid
           return (
             <Field data-invalid={invalid}>
-              <FieldLabel>Categoria de despesa</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Categoria de despesa</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 onValueChange={field.handleChange}
                 placeholder="Selecione uma categoria"
@@ -175,16 +181,40 @@ export const CardPurchaseForm = ({
           </Field>
         )}
       </form.Field>
-      {availableCards.length === 0 && (
+      {resourcesPending && (
+        <p className="text-muted-foreground text-sm sm:col-span-2">Carregando opções…</p>
+      )}
+      {resourceError && (
+        <div className="sm:col-span-2">
+          <ResourceErrorState
+            compact
+            title="Não foi possível carregar as opções da compra"
+            error={resourceError}
+            fallbackMessage="Tente carregar cartões e categorias novamente."
+            onRetry={() => {
+              if (!card) void cards.refetch()
+              void categories.refetch()
+            }}
+            isRetrying={cards.isFetching || categories.isFetching}
+          />
+        </div>
+      )}
+      {!resourcesPending && !resourceError && availableCards.length === 0 && (
         <p className="text-muted-foreground text-sm sm:col-span-2">
           Cadastre um cartão antes de lançar uma compra.
         </p>
       )}
-      {expenseCategories.length === 0 && (
+      {!resourcesPending && !resourceError && expenseCategories.length === 0 && (
         <p className="text-muted-foreground text-sm sm:col-span-2">
           Cadastre uma categoria de despesa antes de lançar uma compra.
         </p>
       )}
+      <div className="sm:col-span-2">
+        <MutationErrorMessage
+          error={updateMutation.error ?? mutation.error}
+          fallbackMessage="Não foi possível salvar a compra no cartão."
+        />
+      </div>
       <DialogFooter className="sm:col-span-2">
         <Button type="button" variant="outline" disabled={isPending} onClick={onCancel}>
           Cancelar
@@ -192,7 +222,12 @@ export const CardPurchaseForm = ({
         <Button
           type="submit"
           disabled={
-            readOnly || isPending || availableCards.length === 0 || expenseCategories.length === 0
+            readOnly ||
+            isPending ||
+            resourcesPending ||
+            Boolean(resourceError) ||
+            availableCards.length === 0 ||
+            expenseCategories.length === 0
           }
         >
           {isPending ? 'Salvando…' : purchase ? 'Salvar alterações' : 'Lançar compra'}

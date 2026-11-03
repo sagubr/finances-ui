@@ -1,3 +1,7 @@
+import {
+  ResourceCollectionSkeleton,
+  ResourceEmptyState,
+} from '@/components/ResourceCollectionState'
 import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
 import Table from '@/components/Table'
@@ -429,7 +433,26 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
               </TooltipButton>
             }
           />
-          {budgetView === 'list' ? (
+          {budgets.isPending ? (
+            <ResourceCollectionSkeleton viewMode={budgetView} />
+          ) : budgets.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar os orçamentos"
+              error={budgets.error}
+              fallbackMessage="Tente carregar os orçamentos novamente."
+              onRetry={() => void budgets.refetch()}
+              isRetrying={budgets.isFetching}
+            />
+          ) : budgets.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhum orçamento cadastrado"
+              description="Defina um limite por categoria para acompanhar seus gastos da competência."
+              actionLabel="Cadastrar orçamento"
+              onAction={() => setDialog('budget')}
+              actionDisabled={readOnly}
+            />
+          ) : budgetView === 'list' ? (
             table(budgetColumns, budgets.data?.items ?? [])
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -512,7 +535,26 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
             createLabel="Nova recorrência"
             createDisabled={readOnly}
           />
-          {recurringView === 'list' ? (
+          {recurring.isPending ? (
+            <ResourceCollectionSkeleton viewMode={recurringView} />
+          ) : recurring.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar as recorrências"
+              error={recurring.error}
+              fallbackMessage="Tente carregar as recorrências novamente."
+              onRetry={() => void recurring.refetch()}
+              isRetrying={recurring.isFetching}
+            />
+          ) : recurring.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhuma recorrência cadastrada"
+              description="Cadastre despesas ou receitas repetidas para gerar os próximos lançamentos."
+              actionLabel="Cadastrar recorrência"
+              onAction={() => setDialog('recurring')}
+              actionDisabled={readOnly}
+            />
+          ) : recurringView === 'list' ? (
             table(recurringColumns, recurring.data?.items ?? [])
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -543,7 +585,16 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
                       Próxima em {formatDatePtBr(rule.nextOccurrenceOn)}
                     </p>
                   </CardContent>
-                  <CardFooter className="gap-2 border-t pt-3">
+                  <CardFooter className="flex gap-2 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1 rounded-full"
+                      disabled={readOnly}
+                      onClick={() => setEditingRule(rule)}
+                    >
+                      <Pencil /> Editar
+                    </Button>
                     <TooltipButton
                       title={rule.pausedAt ? 'Retomar recorrência' : 'Pausar recorrência'}
                       variant="outline"
@@ -553,16 +604,6 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
                       onClick={() => setToggleRule(rule)}
                     >
                       {rule.pausedAt ? <Play /> : <Pause />}
-                    </TooltipButton>
-                    <TooltipButton
-                      title="Editar recorrência"
-                      variant="outline"
-                      size="icon"
-                      className="size-8 rounded-full"
-                      disabled={readOnly}
-                      onClick={() => setEditingRule(rule)}
-                    >
-                      <Pencil />
                     </TooltipButton>
                     <TooltipButton
                       title="Excluir recorrência"
@@ -592,7 +633,26 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
             createLabel="Novo cartão"
             createDisabled={readOnly}
           />
-          {cardView === 'list' ? (
+          {cards.isPending ? (
+            <ResourceCollectionSkeleton viewMode={cardView} />
+          ) : cards.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar os cartões"
+              error={cards.error}
+              fallbackMessage="Tente carregar seus cartões novamente."
+              onRetry={() => void cards.refetch()}
+              isRetrying={cards.isFetching}
+            />
+          ) : cards.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhum cartão cadastrado"
+              description="Cadastre um cartão para organizar compras, faturas e vencimentos."
+              actionLabel="Cadastrar cartão"
+              onAction={() => setDialog('card')}
+              actionDisabled={readOnly}
+            />
+          ) : cardView === 'list' ? (
             table(cardColumns, cards.data?.items ?? [])
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -672,7 +732,9 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
             createLabel="Novo parcelamento"
             createDisabled={readOnly}
           />
-          {installments.isError ? (
+          {installments.isPending ? (
+            <ResourceCollectionSkeleton viewMode={installmentView} />
+          ) : installments.isError ? (
             <ResourceErrorState
               compact
               title="Não foi possível carregar os parcelamentos"
@@ -680,6 +742,14 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
               fallbackMessage="Tente carregar a lista novamente."
               isRetrying={installments.isFetching}
               onRetry={() => void installments.refetch()}
+            />
+          ) : installments.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhum parcelamento cadastrado"
+              description="Cadastre uma compra parcelada para distribuir os lançamentos nas competências."
+              actionLabel="Cadastrar parcelamento"
+              onAction={() => setDialog('installment')}
+              actionDisabled={readOnly}
             />
           ) : installmentView === 'list' ? (
             table(installmentColumns, installments.data?.items ?? [])

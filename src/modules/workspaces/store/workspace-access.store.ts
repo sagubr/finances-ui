@@ -53,6 +53,9 @@ export const setWorkspaceAccessActiveId = (activeWorkspaceId: string) => {
 export const getActiveWorkspaceRole = (state = workspaceAccessStore.state) =>
   state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId)?.role
 
+export const getActiveWorkspaceBaseCurrency = (state = workspaceAccessStore.state) =>
+  state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId)?.baseCurrency
+
 export const canInWorkspace = (
   ability: WorkspaceAbility,
   state = workspaceAccessStore.state,

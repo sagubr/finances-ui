@@ -10,15 +10,25 @@ const currentMonth = () =>
 
 const initialMonth = () => {
   if (typeof window === 'undefined') return currentMonth()
-  const stored = window.localStorage.getItem(STORAGE_KEY)
-  return stored && MONTH_PATTERN.test(stored) ? stored : currentMonth()
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY)
+    return stored && MONTH_PATTERN.test(stored) ? stored : currentMonth()
+  } catch {
+    return currentMonth()
+  }
 }
 
 export const competenceStore = new Store({ month: initialMonth() })
 
 export const setCompetenceMonth = (month: string) => {
   if (!MONTH_PATTERN.test(month)) return
-  if (typeof window !== 'undefined') window.localStorage.setItem(STORAGE_KEY, month)
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, month)
+    } catch {
+      // The selection remains valid in memory when persistent storage is unavailable.
+    }
+  }
   competenceStore.setState(() => ({ month }))
 }
 

@@ -1,3 +1,4 @@
+import { ApiClientError } from '@/api/api-client.error'
 import { extractErrorMessage } from '@/api/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,22 +28,31 @@ export const ResourceErrorState = ({
   onRetry,
   isRetrying = false,
   compact = false,
-}: ResourceErrorStateProps) => (
-  <div className={cn('mx-auto flex w-full max-w-4xl', compact ? 'py-4' : 'py-12')}>
-    <Empty className="border">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <CircleAlert className="text-destructive size-5" />
-        </EmptyMedia>
-        <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>{extractErrorMessage(error, fallbackMessage)}</EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button type="button" variant="outline" size="sm" onClick={onRetry} disabled={isRetrying}>
-          <RefreshCw className={cn('size-3.5', isRetrying && 'animate-spin')} />
-          Tentar novamente
-        </Button>
-      </EmptyContent>
-    </Empty>
-  </div>
-)
+}: ResourceErrorStateProps) => {
+  const requestId = error instanceof ApiClientError ? error.requestId : undefined
+
+  return (
+    <div className={cn('mx-auto flex w-full max-w-4xl', compact ? 'py-4' : 'py-12')}>
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <CircleAlert className="text-destructive size-5" />
+          </EmptyMedia>
+          <EmptyTitle>{title}</EmptyTitle>
+          <EmptyDescription>{extractErrorMessage(error, fallbackMessage)}</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          {requestId && (
+            <p className="text-muted-foreground text-xs">
+              Referência: <code>{requestId}</code>
+            </p>
+          )}
+          <Button type="button" variant="outline" size="sm" onClick={onRetry} disabled={isRetrying}>
+            <RefreshCw className={cn('size-3.5', isRetrying && 'animate-spin')} />
+            Tentar novamente
+          </Button>
+        </EmptyContent>
+      </Empty>
+    </div>
+  )
+}

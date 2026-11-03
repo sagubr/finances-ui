@@ -1,3 +1,4 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
 import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
@@ -5,8 +6,13 @@ import { Input } from '@/components/ui/input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { categoriesQueryOptions } from '@/modules/transactions/queries/transaction.queries'
 import { parseNonNegativeMoneyToCents } from '@/modules/transactions/utils/money'
+import {
+  getActiveWorkspaceBaseCurrency,
+  workspaceAccessStore,
+} from '@/modules/workspaces/store/workspace-access.store'
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
+import { useStore } from '@tanstack/react-store'
 import { z } from 'zod'
 import { planningApi } from '../api/planning.api'
 import type { Budget } from '../models/planning.types'
@@ -40,11 +46,12 @@ export const BudgetForm = ({
   )
   const mutation = budget ? updateMutation : createMutation
   const categories = useQuery(categoriesQueryOptions())
+  const baseCurrency = useStore(workspaceAccessStore, getActiveWorkspaceBaseCurrency)
   const form = useForm({
     defaultValues: {
       categoryId: budget?.categoryId ?? '',
       limit: budget ? (budget.limitCents / 100).toFixed(2).replace('.', ',') : '',
-      currency: budget?.currency ?? 'BRL',
+      currency: budget?.currency ?? baseCurrency ?? '',
     },
     validators: { onSubmit: budgetFormSchema },
     onSubmit: async ({ value, formApi }) => {
@@ -75,15 +82,16 @@ export const BudgetForm = ({
           const invalid = !field.state.meta.isValid
           return (
             <Field data-invalid={invalid}>
-              <FieldLabel>Categoria</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Categoria</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 onValueChange={field.handleChange}
                 disabled={Boolean(budget)}
                 placeholder="Selecione uma categoria"
                 searchPlaceholder="Buscar categoria..."
                 options={(categories.data?.items ?? [])
-                  .filter((category) => category.type === 'EXPENSE')
+                  .filter((category) => category.active && category.type === 'EXPENSE')
                   .map((category) => ({ value: category.id, label: category.name }))}
               />
               {invalid && <FieldError errors={field.state.meta.errors} />}
@@ -122,11 +130,20 @@ export const BudgetForm = ({
           </Field>
         )}
       </form.Field>
+      <div className="sm:col-span-3">
+        <MutationErrorMessage
+          error={mutation.error}
+          fallbackMessage="Não foi possível salvar o orçamento."
+        />
+      </div>
       <DialogFooter className="sm:col-span-3">
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={readOnly || mutation.isPending}>
+        <Button
+          type="submit"
+          disabled={readOnly || mutation.isPending || (!budget && !baseCurrency)}
+        >
           {mutation.isPending ? 'Salvando…' : budget ? 'Salvar alterações' : 'Criar orçamento'}
         </Button>
       </DialogFooter>

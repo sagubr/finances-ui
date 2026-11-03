@@ -1,3 +1,4 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
 import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -49,17 +50,17 @@ export const CreditCardForm = ({
     validators: { onSubmit: creditCardFormSchema },
     onSubmit: async ({ value, formApi }) => {
       const limitCents = parseMoneyToCents(value.limit)
-      if (!limitCents || !value.name.trim()) return
+      const paymentAccount = accounts.data?.items.find(
+        ({ id, active }) => id === value.paymentAccountId && active,
+      )
+      if (!limitCents || !value.name.trim() || !paymentAccount) return
       const input = {
         name: value.name,
         limitCents,
         closingDay: value.closingDay,
         dueDay: value.dueDay,
         paymentAccountId: value.paymentAccountId,
-        currency:
-          accounts.data?.items.find(({ id }) => id === value.paymentAccountId)?.currency ??
-          card?.currency ??
-          'BRL',
+        currency: paymentAccount.currency,
         accountingMode: card?.accountingMode ?? ('DETAILED' as const),
       }
       if (card) await updateMutation.mutateAsync(input)
@@ -119,8 +120,9 @@ export const CreditCardForm = ({
       <form.Field name="paymentAccountId">
         {(field) => (
           <Field className="sm:col-span-2">
-            <FieldLabel>Conta de pagamento da fatura</FieldLabel>
+            <FieldLabel htmlFor={`card-${field.name}`}>Conta de pagamento da fatura</FieldLabel>
             <SearchableSelect
+              id={`card-${field.name}`}
               value={field.state.value}
               onValueChange={field.handleChange}
               placeholder="Selecione uma conta"
@@ -151,6 +153,12 @@ export const CreditCardForm = ({
           </Field>
         )}
       </form.Field>
+      <div className="sm:col-span-2">
+        <MutationErrorMessage
+          error={mutation.error}
+          fallbackMessage="Não foi possível salvar o cartão."
+        />
+      </div>
       <DialogFooter className="sm:col-span-2">
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
           Cancelar

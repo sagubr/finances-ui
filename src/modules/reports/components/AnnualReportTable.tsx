@@ -6,7 +6,10 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import type { AnnualMonth, AnnualReport } from '../models/report.types'
 
-export const AnnualReportTable = ({ report }: { report: AnnualReport }) => {
+export const AnnualReportTable = ({
+  report,
+  currency,
+}: Readonly<{ report: AnnualReport; currency: string }>) => {
   const columns = useMemo<ColumnDef<AnnualMonth>[]>(
     () => [
       competenceColumn<AnnualMonth>('month', { header: 'Mês', size: 140 }),
@@ -14,13 +17,13 @@ export const AnnualReportTable = ({ report }: { report: AnnualReport }) => {
         accessorKey: 'incomeCents',
         header: 'Receitas',
         size: 180,
-        cell: ({ row }) => formatMoney(row.original.incomeCents, 'BRL'),
+        cell: ({ row }) => formatMoney(row.original.incomeCents, currency),
       },
       {
         accessorKey: 'expenseCents',
         header: 'Despesas',
         size: 180,
-        cell: ({ row }) => formatMoney(row.original.expenseCents, 'BRL'),
+        cell: ({ row }) => formatMoney(row.original.expenseCents, currency),
       },
       {
         accessorKey: 'netCents',
@@ -28,12 +31,12 @@ export const AnnualReportTable = ({ report }: { report: AnnualReport }) => {
         size: 180,
         cell: ({ row }) => (
           <span className={row.original.netCents < 0 ? 'text-destructive' : 'text-emerald-600'}>
-            {formatMoney(row.original.netCents, 'BRL')}
+            {formatMoney(row.original.netCents, currency)}
           </span>
         ),
       },
     ],
-    [],
+    [currency],
   )
   return (
     <Card>

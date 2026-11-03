@@ -1,3 +1,7 @@
+import {
+  ResourceCollectionSkeleton,
+  ResourceEmptyState,
+} from '@/components/ResourceCollectionState'
 import { ResourceErrorState } from '@/components/ResourceErrorState'
 import Table from '@/components/Table'
 import { TooltipButton } from '@/components/TooltipButton'
@@ -21,7 +25,7 @@ import {
   getActiveWorkspaceRole,
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
-import { formatDatePtBr } from '@/utils/date'
+import { formatDatePtBr, todayCivilDate } from '@/utils/date'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
@@ -75,7 +79,7 @@ export const CardDetailsPage = ({
       ),
     [statements.data?.items],
   )
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayCivilDate()
   const currentStatement =
     orderedStatements.find(
       (statement) => statement.status === 'OPEN' && statement.dueOn >= today,
@@ -132,10 +136,10 @@ export const CardDetailsPage = ({
         accessorKey: 'totalCents',
         header: 'Total',
         size: 160,
-        cell: ({ row }) => formatMoney(row.original.totalCents, card?.currency ?? 'BRL'),
+        cell: ({ row }) => (card ? formatMoney(row.original.totalCents, card.currency) : '—'),
       },
     ],
-    [card?.currency],
+    [card],
   )
   const purchaseColumns = useMemo<ColumnDef<StatementPurchase>[]>(
     () => [
@@ -198,7 +202,10 @@ export const CardDetailsPage = ({
       />
     )
 
-  if (!cards.isLoading && !card)
+  if (cards.isLoading || statements.isLoading)
+    return <ResourceCollectionSkeleton viewMode="list" rows={8} />
+
+  if (!card)
     return (
       <div className="space-y-4">
         <h1 className="font-heading text-2xl font-semibold">Cartão não encontrado</h1>
@@ -241,9 +248,7 @@ export const CardDetailsPage = ({
             <CardTitle className="text-muted-foreground text-sm">Fatura selecionada</CardTitle>
           </CardHeader>
           <CardContent className="text-xl font-semibold">
-            {selectedStatement
-              ? formatMoney(selectedStatement.totalCents, card?.currency ?? 'BRL')
-              : '—'}
+            {selectedStatement ? formatMoney(selectedStatement.totalCents, card.currency) : '—'}
           </CardContent>
         </Card>
         <Card size="sm">
@@ -251,9 +256,7 @@ export const CardDetailsPage = ({
             <CardTitle className="text-muted-foreground text-sm">Pago</CardTitle>
           </CardHeader>
           <CardContent className="text-xl font-semibold">
-            {selectedStatement
-              ? formatMoney(selectedStatement.paidCents, card?.currency ?? 'BRL')
-              : '—'}
+            {selectedStatement ? formatMoney(selectedStatement.paidCents, card.currency) : '—'}
           </CardContent>
         </Card>
         <Card size="sm">
@@ -296,7 +299,7 @@ export const CardDetailsPage = ({
               </div>
               {currentStatement && (
                 <strong className="text-xl">
-                  {formatMoney(currentStatement.totalCents, card?.currency ?? 'BRL')}
+                  {formatMoney(currentStatement.totalCents, card.currency)}
                 </strong>
               )}
             </CardContent>
@@ -306,13 +309,14 @@ export const CardDetailsPage = ({
           <StatementTimeline
             statements={orderedStatements}
             selectedId={selectedTimelineStatement?.id}
-            currency={card?.currency ?? 'BRL'}
+            currency={card.currency}
             onSelect={(id) => onFiltersChange({ statementId: id })}
           />
           <Card className="min-w-0 overflow-hidden">
             <CardContent className="space-y-4 p-4">
               <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                 <SearchableSelect
+                  aria-label="Filtrar faturas por situação"
                   value={status}
                   onValueChange={(value) =>
                     onFiltersChange({
@@ -330,6 +334,7 @@ export const CardDetailsPage = ({
                   ]}
                 />
                 <SearchableSelect
+                  aria-label="Selecionar fatura"
                   value={selectedTimelineStatement?.id ?? ''}
                   onValueChange={(value) => onFiltersChange({ statementId: value })}
                   className="w-full min-w-0"
@@ -341,16 +346,25 @@ export const CardDetailsPage = ({
                   }))}
                 />
               </div>
-              <div className="h-[320px] min-w-0 rounded-xl border">
-                <Table
-                  columns={statementColumns}
-                  data={filteredStatements}
-                  getRowId={(item) => item.id}
-                  enableRowSelection={false}
-                  shouldRenderCheckbox={false}
-                  onRowClick={({ row }) => onFiltersChange({ statementId: row.original.id })}
+              {statements.isPending ? (
+                <ResourceCollectionSkeleton viewMode="list" rows={4} className="h-[320px]" />
+              ) : filteredStatements.length === 0 ? (
+                <ResourceEmptyState
+                  title="Nenhuma fatura encontrada"
+                  description="Altere os filtros ou faça uma compra para criar a primeira fatura."
                 />
-              </div>
+              ) : (
+                <div className="h-[320px] min-w-0 rounded-xl border">
+                  <Table
+                    columns={statementColumns}
+                    data={filteredStatements}
+                    getRowId={(item) => item.id}
+                    enableRowSelection={false}
+                    shouldRenderCheckbox={false}
+                    onRowClick={({ row }) => onFiltersChange({ statementId: row.original.id })}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -401,15 +415,37 @@ export const CardDetailsPage = ({
             )}
           </div>
         </div>
-        <div className="h-[420px] rounded-xl border">
-          <Table
-            columns={purchaseColumns}
-            data={purchases}
-            getRowId={(item) => item.id}
-            enableRowSelection={false}
-            shouldRenderCheckbox={false}
+        {detail.isPending && activeStatementId ? (
+          <ResourceCollectionSkeleton viewMode="list" rows={6} className="h-[420px]" />
+        ) : detail.isError ? (
+          <ResourceErrorState
+            compact
+            title="Não foi possível carregar as compras"
+            error={detail.error}
+            fallbackMessage="Tente carregar as compras da fatura novamente."
+            onRetry={() => void detail.refetch()}
+            isRetrying={detail.isFetching}
           />
-        </div>
+        ) : purchases.length === 0 ? (
+          <ResourceEmptyState
+            title={search ? 'Nenhuma compra encontrada' : 'Nenhuma compra nesta fatura'}
+            description={
+              search
+                ? 'Altere a busca para localizar outro lançamento.'
+                : 'As compras vinculadas à fatura aparecerão aqui.'
+            }
+          />
+        ) : (
+          <div className="h-[420px] rounded-xl border">
+            <Table
+              columns={purchaseColumns}
+              data={purchases}
+              getRowId={(item) => item.id}
+              enableRowSelection={false}
+              shouldRenderCheckbox={false}
+            />
+          </div>
+        )}
       </section>
 
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>

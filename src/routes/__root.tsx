@@ -1,4 +1,5 @@
 import Forbidden from '@/components/Forbidden'
+import { RootError } from '@/components/RootError'
 import RootNotFound from '@/components/RootNotFound'
 import VersionOutdated from '@/components/VersionOutdated'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
@@ -13,14 +14,15 @@ const isChunkLoadError = (error: unknown): boolean => {
     msg.includes('failed to load module script') ||
     msg.includes('expected a javascript-or-wasm module script') ||
     msg.includes('error loading dynamically imported module') ||
-    msg.includes('loading chunk')
+    msg.includes('loading chunk') ||
+    msg.includes('does not provide an export named')
   )
 }
 
 export const Route = createRootRoute({
   component: Outlet,
   notFoundComponent: () => <RootNotFound />,
-  errorComponent: ({ error }) => {
+  errorComponent: ({ error, reset }) => {
     if (isChunkLoadError(error)) {
       return <VersionOutdated />
     }
@@ -36,6 +38,6 @@ export const Route = createRootRoute({
       return <Forbidden />
     }
 
-    return <RootNotFound />
+    return <RootError error={error} onRetry={reset} />
   },
 })

@@ -1,3 +1,4 @@
+import { reportKeys } from '@/modules/reports/queries/report.queries'
 import { transactionKeys } from '@/modules/transactions/queries/transaction.queries'
 import { getActiveWorkspaceUuid } from '@/modules/workspaces/lib/workspace-selection'
 import { workspaceAccessStore } from '@/modules/workspaces/store/workspace-access.store'
@@ -61,6 +62,7 @@ export const usePlanningMutation = <T, TResult>(mutationFn: (input: T) => Promis
         client.invalidateQueries({ queryKey: planningKeys.root() }),
         client.invalidateQueries({ queryKey: transactionKeys.all(workspaceId) }),
         client.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        client.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
       ])
     },
   })
@@ -77,6 +79,7 @@ export const useCreateInstallments = () => {
         client.invalidateQueries({ queryKey: planningKeys.root() }),
         client.invalidateQueries({ queryKey: transactionKeys.all(workspaceId) }),
         client.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        client.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
       ])
     },
   })
@@ -99,6 +102,7 @@ export const useCreateCardPurchase = () => {
         client.invalidateQueries({ queryKey: planningKeys.root() }),
         client.invalidateQueries({ queryKey: transactionKeys.all(workspaceId) }),
         client.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        client.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
       ])
     },
   })

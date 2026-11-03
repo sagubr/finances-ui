@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   canInWorkspace,
+  getActiveWorkspaceBaseCurrency,
   setWorkspaceAccessActiveId,
   setWorkspaceAccessList,
 } from './workspace-access.store'
@@ -33,5 +34,10 @@ describe('workspace access store', () => {
     expect(canInWorkspace('workspace.view')).toBe(true)
     expect(canInWorkspace('workspace.administer')).toBe(false)
     expect(canInWorkspace('ownership.transfer')).toBe(false)
+  })
+
+  it('exposes the base currency of the active workspace', () => {
+    setWorkspaceAccessActiveId('owner-workspace')
+    expect(getActiveWorkspaceBaseCurrency()).toBe('BRL')
   })
 })

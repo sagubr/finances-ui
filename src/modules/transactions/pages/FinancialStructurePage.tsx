@@ -1,4 +1,10 @@
 import { ApiClientError } from '@/api/api-client.error'
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
+import {
+  ResourceCollectionSkeleton,
+  ResourceEmptyState,
+} from '@/components/ResourceCollectionState'
+import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
 import Table from '@/components/Table'
 import { civilDateColumn } from '@/components/Table/columns/date.columns'
@@ -20,6 +26,7 @@ import { Input } from '@/components/ui/input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { useResourceViewMode } from '@/hooks/use-resource-view-mode'
 import {
+  getActiveWorkspaceBaseCurrency,
   getActiveWorkspaceRole,
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
@@ -60,8 +67,8 @@ const accountTypeLabels: Record<Account['type'], string> = {
   CHECKING: 'Conta corrente',
   SAVINGS: 'Poupança',
   CASH: 'Dinheiro',
-  BROKERAGE: 'Corretora / investimentos',
-  BENEFIT: 'Benefício / saldo restrito',
+  BROKERAGE: 'Investimentos',
+  BENEFIT: 'Benefício',
   OTHER: 'Outra',
 }
 
@@ -70,11 +77,13 @@ const AccountForm = ({
   onCancel,
   onSuccess,
   account,
+  baseCurrency,
 }: Readonly<{
   disabled: boolean
   onCancel: () => void
   onSuccess: () => void
   account?: Account
+  baseCurrency: string
 }>) => {
   const createMutation = useCreateAccount()
   const updateMutation = useUpdateAccount()
@@ -83,7 +92,7 @@ const AccountForm = ({
     defaultValues: {
       name: account?.name ?? '',
       type: account?.type ?? ('CHECKING' as Account['type']),
-      currency: account?.currency ?? 'BRL',
+      currency: account?.currency ?? baseCurrency,
       openingBalance: account
         ? (account.openingBalanceCents / 100).toFixed(2).replace('.', ',')
         : '0,00',
@@ -133,8 +142,9 @@ const AccountForm = ({
         <form.Field name="type">
           {(field) => (
             <Field>
-              <FieldLabel>Tipo</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Tipo</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 disabled={Boolean(account)}
                 onValueChange={(value) => field.handleChange(value as Account['type'])}
@@ -156,10 +166,9 @@ const AccountForm = ({
                   id={field.name}
                   aria-invalid={invalid}
                   maxLength={3}
-                  disabled={Boolean(account)}
+                  disabled
+                  readOnly
                   value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value.toUpperCase())}
                 />
                 {invalid && <FieldError errors={field.state.meta.errors} />}
               </Field>
@@ -218,9 +227,15 @@ const AccountForm = ({
 
 const CategoryForm = ({
   disabled,
+  onCancel,
   onSuccess,
   category,
-}: Readonly<{ disabled: boolean; onSuccess: () => void; category?: Category }>) => {
+}: Readonly<{
+  disabled: boolean
+  onCancel: () => void
+  onSuccess: () => void
+  category?: Category
+}>) => {
   const createMutation = useCreateCategory()
   const updateMutation = useUpdateCategory()
   const mutation = category ? updateMutation : createMutation
@@ -261,8 +276,9 @@ const CategoryForm = ({
         <form.Field name="type">
           {(field) => (
             <Field>
-              <FieldLabel>Tipo</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Tipo</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 disabled={Boolean(category)}
                 onValueChange={(value) => field.handleChange(value as Category['type'])}
@@ -289,9 +305,18 @@ const CategoryForm = ({
           )}
         </form.Field>
       </div>
-      <Button type="submit" disabled={disabled || mutation.isPending}>
-        {mutation.isPending ? 'Salvando…' : category ? 'Salvar alterações' : 'Criar categoria'}
-      </Button>
+      <MutationErrorMessage
+        error={mutation.error}
+        fallbackMessage="Não foi possível salvar a categoria."
+      />
+      <DialogFooter>
+        <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={disabled || mutation.isPending}>
+          {mutation.isPending ? 'Salvando…' : category ? 'Salvar alterações' : 'Criar categoria'}
+        </Button>
+      </DialogFooter>
     </form>
   )
 }
@@ -321,6 +346,7 @@ export const FinancialStructurePage = ({
     enabled: section === 'categories',
   })
   const isReadOnly = useStore(workspaceAccessStore, getActiveWorkspaceRole) === 'VIEWER'
+  const baseCurrency = useStore(workspaceAccessStore, getActiveWorkspaceBaseCurrency)
   const [accountOpen, setAccountOpen] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
@@ -468,7 +494,26 @@ export const FinancialStructurePage = ({
             createLabel="Nova conta"
             createDisabled={isReadOnly}
           />
-          {accountView === 'list' ? (
+          {accounts.isPending ? (
+            <ResourceCollectionSkeleton viewMode={accountView} />
+          ) : accounts.isError ? (
+            <ResourceErrorState
+              title="Não foi possível carregar as contas"
+              error={accounts.error}
+              fallbackMessage="Tente carregar suas contas novamente."
+              onRetry={() => void accounts.refetch()}
+              isRetrying={accounts.isFetching}
+              compact
+            />
+          ) : accounts.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhuma conta cadastrada"
+              description="Cadastre sua primeira conta para começar a acompanhar saldos e lançamentos."
+              actionLabel="Cadastrar conta"
+              onAction={() => setAccountOpen(true)}
+              actionDisabled={isReadOnly}
+            />
+          ) : accountView === 'list' ? (
             <div className="h-[520px] rounded-xl border">
               <Table<Account>
                 columns={accountColumns}
@@ -550,7 +595,26 @@ export const FinancialStructurePage = ({
             createLabel="Nova categoria"
             createDisabled={isReadOnly}
           />
-          {categoryView === 'list' ? (
+          {categories.isPending ? (
+            <ResourceCollectionSkeleton viewMode={categoryView} />
+          ) : categories.isError ? (
+            <ResourceErrorState
+              title="Não foi possível carregar as categorias"
+              error={categories.error}
+              fallbackMessage="Tente carregar suas categorias novamente."
+              onRetry={() => void categories.refetch()}
+              isRetrying={categories.isFetching}
+              compact
+            />
+          ) : categories.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhuma categoria cadastrada"
+              description="Cadastre categorias para organizar receitas e despesas nos relatórios."
+              actionLabel="Cadastrar categoria"
+              onAction={() => setCategoryOpen(true)}
+              actionDisabled={isReadOnly}
+            />
+          ) : categoryView === 'list' ? (
             <div className="h-[520px] rounded-xl border">
               <Table<Category>
                 columns={categoryColumns}
@@ -622,11 +686,16 @@ export const FinancialStructurePage = ({
               Cadastre uma conta financeira neste espaço financeiro.
             </DialogDescription>
           </DialogHeader>
-          <AccountForm
-            disabled={isReadOnly}
-            onCancel={() => setAccountOpen(false)}
-            onSuccess={() => setAccountOpen(false)}
-          />
+          {baseCurrency ? (
+            <AccountForm
+              baseCurrency={baseCurrency}
+              disabled={isReadOnly}
+              onCancel={() => setAccountOpen(false)}
+              onSuccess={() => setAccountOpen(false)}
+            />
+          ) : (
+            <p className="text-muted-foreground py-4 text-sm">Carregando moeda do workspace…</p>
+          )}
         </DialogContent>
       </Dialog>
       <Dialog
@@ -638,10 +707,11 @@ export const FinancialStructurePage = ({
             <DialogTitle>Editar conta</DialogTitle>
             <DialogDescription>Atualize os dados da conta financeira.</DialogDescription>
           </DialogHeader>
-          {editingAccount && (
+          {editingAccount && baseCurrency && (
             <AccountForm
               key={editingAccount.id}
               account={editingAccount}
+              baseCurrency={baseCurrency}
               disabled={isReadOnly}
               onCancel={() => setEditingAccount(null)}
               onSuccess={() => setEditingAccount(null)}
@@ -655,7 +725,11 @@ export const FinancialStructurePage = ({
             <DialogTitle>Nova categoria</DialogTitle>
             <DialogDescription>Organize receitas e despesas com uma categoria.</DialogDescription>
           </DialogHeader>
-          <CategoryForm disabled={isReadOnly} onSuccess={() => setCategoryOpen(false)} />
+          <CategoryForm
+            disabled={isReadOnly}
+            onCancel={() => setCategoryOpen(false)}
+            onSuccess={() => setCategoryOpen(false)}
+          />
         </DialogContent>
       </Dialog>
       <Dialog
@@ -672,6 +746,7 @@ export const FinancialStructurePage = ({
               key={editingCategory.id}
               category={editingCategory}
               disabled={isReadOnly}
+              onCancel={() => setEditingCategory(null)}
               onSuccess={() => setEditingCategory(null)}
             />
           )}

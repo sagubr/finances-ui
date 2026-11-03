@@ -1,3 +1,8 @@
+import {
+  ResourceCollectionSkeleton,
+  ResourceEmptyState,
+} from '@/components/ResourceCollectionState'
+import { ResourceErrorState } from '@/components/ResourceErrorState'
 import Table from '@/components/Table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -117,7 +122,26 @@ export const ImportsPage = () => {
                 Reverter
               </Button>
             </div>
-            {rows.data && (
+            {rows.isPending && batch.data?.status === 'PREVIEWED' && (
+              <ResourceCollectionSkeleton viewMode="list" className="h-[500px]" />
+            )}
+            {rows.isError && (
+              <ResourceErrorState
+                compact
+                title="Não foi possível carregar a prévia"
+                error={rows.error}
+                fallbackMessage="Tente carregar as linhas novamente."
+                onRetry={() => void rows.refetch()}
+                isRetrying={rows.isFetching}
+              />
+            )}
+            {rows.data?.items.length === 0 && (
+              <ResourceEmptyState
+                title="Nenhuma linha encontrada"
+                description="Confira se o arquivo possui dados válidos e tente enviar novamente."
+              />
+            )}
+            {rows.data && rows.data.items.length > 0 && (
               <div className="h-[500px] rounded-xl border">
                 <Table<ImportRow>
                   columns={rowColumns}

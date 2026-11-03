@@ -22,7 +22,11 @@ export const useResourceViewMode = (resource: string, fallback: ViewMode = 'list
     (nextMode: ViewMode) => {
       resourceViewStore.setState((state) => {
         const modes = { ...state.modes, [resource]: nextMode }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(modes))
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(modes))
+        } catch {
+          // Storage may be unavailable (private mode, quota, or hardened browsers).
+        }
         return { modes }
       })
     },

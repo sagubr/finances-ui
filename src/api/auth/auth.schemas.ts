@@ -4,6 +4,8 @@ import type { SessionResponse } from './type'
 
 export const registeredUserSchema = z.object({
   userId: publicIdSchema,
+  workspaceId: publicIdSchema,
+  emailConfirmationRequired: z.boolean(),
 })
 export const confirmedEmailSchema = z.object({ confirmed: z.literal(true) })
 export const acceptedRequestSchema = z.object({ accepted: z.literal(true) })

@@ -1,3 +1,4 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
@@ -37,6 +38,12 @@ export const TransferForm = ({
   onSuccess: () => void
 }>) => {
   const mutation = useCreateTransfer()
+  const hasCompatiblePair = accounts.some((account, index) =>
+    accounts.some(
+      (candidate, candidateIndex) =>
+        candidateIndex !== index && candidate.currency === account.currency,
+    ),
+  )
   const form = useForm({
     defaultValues: {
       fromAccountId:
@@ -79,8 +86,9 @@ export const TransferForm = ({
       <form.Field name="fromAccountId">
         {(field) => (
           <Field>
-            <FieldLabel>Conta de origem</FieldLabel>
+            <FieldLabel htmlFor={field.name}>Conta de origem</FieldLabel>
             <SearchableSelect
+              id={field.name}
               value={field.state.value}
               onValueChange={(value) => {
                 field.handleChange(value)
@@ -89,7 +97,7 @@ export const TransferForm = ({
               options={accounts.map((account) => ({
                 value: account.id,
                 label: account.name,
-                badge: account.type === 'BROKERAGE' ? 'Corretora' : account.currency,
+                badge: account.type === 'BROKERAGE' ? 'Investimentos' : account.currency,
               }))}
             />
           </Field>
@@ -100,12 +108,13 @@ export const TransferForm = ({
           const invalid = field.state.meta.isTouched && !field.state.meta.isValid
           return (
             <Field data-invalid={invalid}>
-              <FieldLabel>Conta de destino</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Conta de destino</FieldLabel>
               <form.Subscribe selector={(state) => state.values.fromAccountId}>
                 {(fromAccountId) => {
                   const source = accounts.find(({ id }) => id === fromAccountId)
                   return (
                     <SearchableSelect
+                      id={field.name}
                       value={field.state.value}
                       onValueChange={field.handleChange}
                       placeholder="Selecione o destino"
@@ -119,7 +128,7 @@ export const TransferForm = ({
                           label: account.name,
                           badge:
                             account.type === 'BROKERAGE'
-                              ? 'Investimento'
+                              ? 'Investimentos'
                               : account.type === 'BENEFIT'
                                 ? 'Benefício'
                                 : account.currency,
@@ -136,8 +145,9 @@ export const TransferForm = ({
       <form.Field name="status">
         {(field) => (
           <Field>
-            <FieldLabel>Situação</FieldLabel>
+            <FieldLabel htmlFor={field.name}>Situação</FieldLabel>
             <SearchableSelect
+              id={field.name}
               value={field.state.value}
               onValueChange={(value) => field.handleChange(value as TransactionStatus)}
               options={[
@@ -186,11 +196,22 @@ export const TransferForm = ({
           </Field>
         )}
       </form.Field>
+      <div className="sm:col-span-2">
+        <MutationErrorMessage
+          error={mutation.error}
+          fallbackMessage="Não foi possível salvar a transferência."
+        />
+      </div>
+      {!hasCompatiblePair && (
+        <p className="text-muted-foreground text-sm sm:col-span-2">
+          São necessárias duas contas ativas na mesma moeda para realizar uma transferência.
+        </p>
+      )}
       <DialogFooter className="sm:col-span-2">
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={mutation.isPending || accounts.length < 2}>
+        <Button type="submit" disabled={mutation.isPending || !hasCompatiblePair}>
           {mutation.isPending ? 'Salvando…' : 'Salvar transferência'}
         </Button>
       </DialogFooter>

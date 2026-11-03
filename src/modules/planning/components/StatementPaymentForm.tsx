@@ -1,3 +1,5 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
+import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
@@ -38,6 +40,9 @@ export const StatementPaymentForm = ({
     planningApi.payStatement(statement, input),
   )
   const remainingCents = Math.max(0, statement.totalCents - statement.paidCents)
+  const eligibleAccounts = (accounts.data?.items ?? []).filter(
+    (account) => account.active && account.currency === currency,
+  )
   const form = useForm({
     defaultValues: {
       accountId: '',
@@ -47,7 +52,12 @@ export const StatementPaymentForm = ({
     validators: { onSubmit: statementPaymentFormSchema },
     onSubmit: async ({ value }) => {
       const amountCents = parseMoneyToCents(value.amount)
-      if (!amountCents || amountCents > remainingCents) return
+      if (
+        !amountCents ||
+        amountCents > remainingCents ||
+        !eligibleAccounts.some(({ id }) => id === value.accountId)
+      )
+        return
       await mutation.mutateAsync({ accountId: value.accountId, amountCents, paidOn: value.paidOn })
       onSuccess()
     },
@@ -66,25 +76,41 @@ export const StatementPaymentForm = ({
           const invalid = field.state.meta.isTouched && !field.state.meta.isValid
           return (
             <Field data-invalid={invalid} className="sm:col-span-2">
-              <FieldLabel>Conta de pagamento</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Conta de pagamento</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 onValueChange={field.handleChange}
                 placeholder="Selecione uma conta"
                 searchPlaceholder="Buscar conta..."
-                options={(accounts.data?.items ?? [])
-                  .filter((account) => account.active && account.currency === currency)
-                  .map((account) => ({
-                    value: account.id,
-                    label: account.name,
-                    badge: account.currency,
-                  }))}
+                options={eligibleAccounts.map((account) => ({
+                  value: account.id,
+                  label: account.name,
+                  badge: account.currency,
+                }))}
               />
               {invalid && <FieldError errors={field.state.meta.errors} />}
             </Field>
           )
         }}
       </form.Field>
+      {accounts.isError && (
+        <div className="sm:col-span-2">
+          <ResourceErrorState
+            compact
+            title="Não foi possível carregar as contas"
+            error={accounts.error}
+            fallbackMessage="Tente carregar as contas de pagamento novamente."
+            onRetry={() => void accounts.refetch()}
+            isRetrying={accounts.isFetching}
+          />
+        </div>
+      )}
+      {!accounts.isPending && !accounts.isError && eligibleAccounts.length === 0 && (
+        <p className="text-muted-foreground text-sm sm:col-span-2">
+          Cadastre ou ative uma conta em {currency} para pagar esta fatura.
+        </p>
+      )}
       <form.Field name="amount">
         {(field) => {
           const amountCents = parseMoneyToCents(field.state.value)
@@ -122,11 +148,26 @@ export const StatementPaymentForm = ({
           </Field>
         )}
       </form.Field>
+      <div className="sm:col-span-2">
+        <MutationErrorMessage
+          error={mutation.error}
+          fallbackMessage="Não foi possível registrar o pagamento da fatura."
+        />
+      </div>
       <DialogFooter className="sm:col-span-2">
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={mutation.isPending}>
+        <Button
+          type="submit"
+          disabled={
+            mutation.isPending ||
+            accounts.isPending ||
+            accounts.isError ||
+            remainingCents === 0 ||
+            eligibleAccounts.length === 0
+          }
+        >
           {mutation.isPending ? 'Registrando…' : 'Registrar pagamento'}
         </Button>
       </DialogFooter>

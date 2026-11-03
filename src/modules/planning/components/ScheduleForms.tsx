@@ -1,3 +1,4 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
@@ -44,11 +45,13 @@ const installmentFormSchema = z
   })
 
 const AccountSelect = ({
+  id,
   value,
   onChange,
   invalid = false,
   errors,
 }: {
+  id: string
   value: string
   onChange: (value: string) => void
   invalid?: boolean
@@ -57,17 +60,20 @@ const AccountSelect = ({
   const accounts = useQuery(accountsQueryOptions())
   return (
     <Field data-invalid={invalid}>
-      <FieldLabel>Conta</FieldLabel>
+      <FieldLabel htmlFor={id}>Conta</FieldLabel>
       <SearchableSelect
+        id={id}
         value={value}
         onValueChange={onChange}
         placeholder="Selecione uma conta"
         searchPlaceholder="Buscar conta..."
-        options={(accounts.data?.items ?? []).map((account) => ({
-          value: account.id,
-          label: account.name,
-          badge: account.currency,
-        }))}
+        options={(accounts.data?.items ?? [])
+          .filter(({ active }) => active)
+          .map((account) => ({
+            value: account.id,
+            label: account.name,
+            badge: account.currency,
+          }))}
       />
       {invalid && <FieldError errors={errors} />}
     </Field>
@@ -116,7 +122,8 @@ export const InstallmentForm = ({
       const currency =
         value.target === 'CARD'
           ? selectedCard?.currency
-          : accounts.data?.items.find(({ id }) => id === value.accountId)?.currency
+          : accounts.data?.items.find(({ id, active }) => id === value.accountId && active)
+              ?.currency
       if (!currency || !accountId) return
       const input = {
         accountId,
@@ -162,8 +169,9 @@ export const InstallmentForm = ({
         <form.Field name="target">
           {(field) => (
             <Field>
-              <FieldLabel>Destino</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Destino</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 onValueChange={(value) => field.handleChange(value as 'ACCOUNT' | 'CARD')}
                 options={[
@@ -202,8 +210,9 @@ export const InstallmentForm = ({
                 const invalid = !field.state.meta.isValid
                 return (
                   <Field data-invalid={invalid}>
-                    <FieldLabel>Cartão</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>Cartão</FieldLabel>
                     <SearchableSelect
+                      id={field.name}
                       value={field.state.value}
                       onValueChange={field.handleChange}
                       placeholder="Selecione um cartão"
@@ -226,6 +235,7 @@ export const InstallmentForm = ({
                 const invalid = !field.state.meta.isValid
                 return (
                   <AccountSelect
+                    id={field.name}
                     value={field.state.value}
                     onChange={field.handleChange}
                     invalid={invalid}
@@ -242,8 +252,9 @@ export const InstallmentForm = ({
           const invalid = !field.state.meta.isValid
           return (
             <Field data-invalid={invalid}>
-              <FieldLabel>Categoria de despesa</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Categoria de despesa</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 onValueChange={field.handleChange}
                 placeholder="Selecione uma categoria"
@@ -294,6 +305,12 @@ export const InstallmentForm = ({
           )
         }}
       </form.Field>
+      <div className="sm:col-span-2">
+        <MutationErrorMessage
+          error={mutation.error}
+          fallbackMessage="Não foi possível salvar o parcelamento."
+        />
+      </div>
       <DialogFooter className="sm:col-span-2">
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
           Cancelar

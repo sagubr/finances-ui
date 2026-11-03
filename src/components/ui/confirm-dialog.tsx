@@ -1,3 +1,4 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -40,17 +41,20 @@ export const ConfirmDialog = React.memo<ConfirmDialogProps>(
     onConfirm,
     onCancel,
   }) => {
+    const [confirmationError, setConfirmationError] = React.useState<unknown>(null)
     const handleCancel = () => {
+      setConfirmationError(null)
       onCancel?.()
       onOpenChange(false)
     }
 
     const handleConfirm = async () => {
+      setConfirmationError(null)
       try {
         await onConfirm()
         onOpenChange(false)
-      } catch {
-        // The caller owns the error feedback. Keep the dialog open so the user can retry.
+      } catch (error) {
+        setConfirmationError(error)
       }
     }
 
@@ -106,6 +110,11 @@ export const ConfirmDialog = React.memo<ConfirmDialogProps>(
               </div>
             </div>
           </DialogHeader>
+
+          <MutationErrorMessage
+            error={confirmationError}
+            fallbackMessage="Não foi possível concluir a ação. Tente novamente."
+          />
 
           <DialogFooter className="border-border/40 mt-2 flex items-center justify-end gap-2 border-t pt-3">
             <Button

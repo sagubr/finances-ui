@@ -1,7 +1,7 @@
 {
-  "name": "Finanças",
-  "short_name": "Finanças",
-  "description": "Organização e planejamento financeiro pessoal.",
+  "name": "Nummo",
+  "short_name": "Nummo",
+  "description": "Organização, controle e planejamento da sua vida financeira.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,13 +1,18 @@
+import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/contexts/AuthProvider'
 import { useCompetenceMonth } from '@/modules/competence/store/competence.store'
 import { annualReportQuery, forecastQuery } from '@/modules/reports/queries/report.queries'
 import { monthlySummaryQueryOptions } from '@/modules/transactions/queries/transaction.queries'
 import { formatMoney } from '@/modules/transactions/utils/money'
-import { getActiveWorkspaceUuid } from '@/modules/workspaces/lib/workspace-selection'
-import { useWorkspaces } from '@/modules/workspaces/queries'
+import {
+  getActiveWorkspaceBaseCurrency,
+  workspaceAccessStore,
+} from '@/modules/workspaces/store/workspace-access.store'
 import { useQuery } from '@tanstack/react-query'
+import { useStore } from '@tanstack/react-store'
 import { ArrowDownRight, ArrowUpRight, CalendarClock, Scale } from 'lucide-react'
 import { AnnualEvolutionChart, PlannedCashflowChart } from './FinancialCharts'
 
@@ -62,11 +67,8 @@ export const HomeView = () => {
   const summary = useQuery(monthlySummaryQueryOptions(month))
   const annual = useQuery(annualReportQuery(Number(month.slice(0, 4))))
   const forecast = useQuery(forecastQuery(range.from, range.to))
-  const workspaces = useWorkspaces()
-  const activeWorkspace = workspaces.data?.find(({ id }) => id === getActiveWorkspaceUuid())
-  const currency = activeWorkspace?.baseCurrency ?? 'BRL'
+  const currency = useStore(workspaceAccessStore, getActiveWorkspaceBaseCurrency)
   const data = summary.data
-  const projectedNet = (data?.netCents ?? 0) + (data?.plannedNetCents ?? 0)
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6">
@@ -81,42 +83,88 @@ export const HomeView = () => {
           </p>
         </div>
       </header>
-      <section
-        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-        aria-label="Indicadores da competência"
-      >
-        <MetricCard
-          title="Receitas realizadas"
-          value={formatMoney(data?.incomeCents ?? 0, currency)}
-          helper="Confirmadas ou liquidadas"
-          icon={ArrowUpRight}
-          tone="positive"
+      {summary.isPending || !currency ? (
+        <section
+          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+          aria-label="Carregando indicadores"
+        >
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton key={index} className="h-32 rounded-xl" />
+          ))}
+        </section>
+      ) : summary.isError ? (
+        <ResourceErrorState
+          compact
+          title="Não foi possível carregar os indicadores"
+          error={summary.error}
+          fallbackMessage="Tente carregar o resumo da competência novamente."
+          onRetry={() => void summary.refetch()}
+          isRetrying={summary.isFetching}
         />
-        <MetricCard
-          title="Despesas realizadas"
-          value={formatMoney(data?.expenseCents ?? 0, currency)}
-          helper="Confirmadas ou liquidadas"
-          icon={ArrowDownRight}
-          tone="negative"
-        />
-        <MetricCard
-          title="Resultado realizado"
-          value={formatMoney(data?.netCents ?? 0, currency)}
-          helper="Receitas menos despesas"
-          icon={Scale}
-          tone={(data?.netCents ?? 0) >= 0 ? 'positive' : 'negative'}
-        />
-        <MetricCard
-          title="Resultado projetado"
-          value={formatMoney(projectedNet, currency)}
-          helper="Realizado mais planejado"
-          icon={CalendarClock}
-          tone={projectedNet >= 0 ? 'positive' : 'negative'}
-        />
-      </section>
+      ) : data ? (
+        <section
+          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+          aria-label="Indicadores da competência"
+        >
+          <MetricCard
+            title="Receitas realizadas"
+            value={formatMoney(data.incomeCents, currency)}
+            helper="Confirmadas ou liquidadas"
+            icon={ArrowUpRight}
+            tone="positive"
+          />
+          <MetricCard
+            title="Despesas realizadas"
+            value={formatMoney(data.expenseCents, currency)}
+            helper="Confirmadas ou liquidadas"
+            icon={ArrowDownRight}
+            tone="negative"
+          />
+          <MetricCard
+            title="Resultado realizado"
+            value={formatMoney(data.netCents, currency)}
+            helper="Receitas menos despesas"
+            icon={Scale}
+            tone={data.netCents >= 0 ? 'positive' : 'negative'}
+          />
+          <MetricCard
+            title="Resultado projetado"
+            value={formatMoney(data.netCents + data.plannedNetCents, currency)}
+            helper="Realizado mais planejado"
+            icon={CalendarClock}
+            tone={data.netCents + data.plannedNetCents >= 0 ? 'positive' : 'negative'}
+          />
+        </section>
+      ) : null}
       <section className="grid min-w-0 gap-4 xl:grid-cols-2" aria-label="Gráficos financeiros">
-        <AnnualEvolutionChart months={annual.data?.months ?? []} currency={currency} />
-        <PlannedCashflowChart forecast={forecast.data} currency={currency} />
+        {annual.isPending || !currency ? (
+          <Skeleton className="h-72 rounded-xl" />
+        ) : annual.isError ? (
+          <ResourceErrorState
+            compact
+            title="Não foi possível carregar a evolução anual"
+            error={annual.error}
+            fallbackMessage="Tente carregar o gráfico novamente."
+            onRetry={() => void annual.refetch()}
+            isRetrying={annual.isFetching}
+          />
+        ) : (
+          <AnnualEvolutionChart months={annual.data.months} currency={currency} />
+        )}
+        {forecast.isPending || !currency ? (
+          <Skeleton className="h-72 rounded-xl" />
+        ) : forecast.isError ? (
+          <ResourceErrorState
+            compact
+            title="Não foi possível carregar a previsão"
+            error={forecast.error}
+            fallbackMessage="Tente carregar o gráfico novamente."
+            onRetry={() => void forecast.refetch()}
+            isRetrying={forecast.isFetching}
+          />
+        ) : (
+          <PlannedCashflowChart forecast={forecast.data} currency={currency} />
+        )}
       </section>
     </div>
   )

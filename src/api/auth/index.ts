@@ -30,8 +30,11 @@ export const authenticateUser = async (input: { email: string; password: string 
 }
 
 export const logoutUser = async (): Promise<void> => {
-  await apiClient.post('/auth/logout')
-  clearCsrfToken()
+  try {
+    await apiClient.post('/auth/logout')
+  } finally {
+    clearCsrfToken()
+  }
 }
 
 export const recoverPassword = async (email: string): Promise<void> => {

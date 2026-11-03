@@ -1,3 +1,8 @@
+import {
+  ResourceCollectionSkeleton,
+  ResourceEmptyState,
+} from '@/components/ResourceCollectionState'
+import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
 import Table from '@/components/Table'
 import { civilDateColumn, dateTimeColumn } from '@/components/Table/columns/date.columns'
@@ -292,7 +297,26 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
             createLabel="Nova meta"
             createDisabled={readOnly}
           />
-          {goalView === 'list' ? (
+          {goals.isPending ? (
+            <ResourceCollectionSkeleton viewMode={goalView} />
+          ) : goals.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar as metas"
+              error={goals.error}
+              fallbackMessage="Tente carregar suas metas novamente."
+              onRetry={() => void goals.refetch()}
+              isRetrying={goals.isFetching}
+            />
+          ) : goals.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhuma meta cadastrada"
+              description="Cadastre uma meta para acompanhar sua evolução financeira."
+              actionLabel="Cadastrar meta"
+              onAction={() => setDialog('goal')}
+              actionDisabled={readOnly}
+            />
+          ) : goalView === 'list' ? (
             table(goalColumns, goals.data?.items ?? [])
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -359,7 +383,26 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
             createLabel="Novo desejo"
             createDisabled={readOnly}
           />
-          {wishlistView === 'list' ? (
+          {wishlist.isPending ? (
+            <ResourceCollectionSkeleton viewMode={wishlistView} />
+          ) : wishlist.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar a lista de desejos"
+              error={wishlist.error}
+              fallbackMessage="Tente carregar seus desejos novamente."
+              onRetry={() => void wishlist.refetch()}
+              isRetrying={wishlist.isFetching}
+            />
+          ) : wishlist.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhum desejo cadastrado"
+              description="Cadastre um desejo para planejar suas próximas conquistas."
+              actionLabel="Cadastrar desejo"
+              onAction={() => setDialog('wishlist')}
+              actionDisabled={readOnly}
+            />
+          ) : wishlistView === 'list' ? (
             table(wishlistColumns, wishlist.data?.items ?? [])
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -425,7 +468,26 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
             createLabel="Nova atividade"
             createDisabled={readOnly}
           />
-          {activityView === 'list' ? (
+          {activities.isPending ? (
+            <ResourceCollectionSkeleton viewMode={activityView} />
+          ) : activities.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar as atividades"
+              error={activities.error}
+              fallbackMessage="Tente carregar suas atividades novamente."
+              onRetry={() => void activities.refetch()}
+              isRetrying={activities.isFetching}
+            />
+          ) : activities.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhuma atividade cadastrada"
+              description="Cadastre uma atividade para organizar seu planejamento."
+              actionLabel="Cadastrar atividade"
+              onAction={() => setDialog('activity')}
+              actionDisabled={readOnly}
+            />
+          ) : activityView === 'list' ? (
             table(activityColumns, activities.data?.items ?? [])
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -496,7 +558,23 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
               </Button>
             </div>
           )}
-          {notificationView === 'list' ? (
+          {notifications.isPending ? (
+            <ResourceCollectionSkeleton viewMode={notificationView} />
+          ) : notifications.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar as notificações"
+              error={notifications.error}
+              fallbackMessage="Tente carregar suas notificações novamente."
+              onRetry={() => void notifications.refetch()}
+              isRetrying={notifications.isFetching}
+            />
+          ) : notifications.data.items.length === 0 ? (
+            <ResourceEmptyState
+              title="Nenhuma notificação"
+              description="Quando houver atualizações importantes, elas aparecerão aqui."
+            />
+          ) : notificationView === 'list' ? (
             table(notificationColumns, notifications.data?.items ?? [])
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

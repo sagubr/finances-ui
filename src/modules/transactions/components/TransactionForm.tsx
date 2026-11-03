@@ -17,6 +17,7 @@ import type {
   TransactionType,
 } from '../models/transaction.types'
 import { useCreateTransaction, useUpdateTransaction } from '../queries/transaction.queries'
+import { accountsForCurrency } from '../utils/account-selection'
 import { parseMoneyToCents } from '../utils/money'
 
 type TransactionFormProps = Readonly<{
@@ -49,6 +50,10 @@ export const TransactionForm = ({
   const createMutation = useCreateTransaction()
   const updateMutation = useUpdateTransaction()
   const mutation = transaction ? updateMutation : createMutation
+  const availableAccounts = accountsForCurrency(
+    accounts.filter(({ active }) => active),
+    transaction?.currency,
+  )
   const typeOptions =
     transaction && transaction.type !== 'INCOME' && transaction.type !== 'EXPENSE'
       ? [
@@ -68,7 +73,7 @@ export const TransactionForm = ({
         ]
   const form = useForm({
     defaultValues: {
-      accountId: transaction?.accountId ?? accounts[0]?.id ?? '',
+      accountId: transaction?.accountId ?? availableAccounts[0]?.id ?? '',
       categoryId: transaction?.categoryId ?? '',
       type: transaction?.type ?? ('EXPENSE' as TransactionType),
       status: transaction?.status ?? ('CONFIRMED' as 'PLANNED' | 'CONFIRMED' | 'SETTLED'),
@@ -79,10 +84,10 @@ export const TransactionForm = ({
     validators: { onSubmit: transactionFormSchema },
     onSubmit: async ({ value, formApi }) => {
       const amountCents = parseMoneyToCents(value.amount)
-      const account = accounts.find(({ id }) => id === value.accountId)
+      const account = availableAccounts.find(({ id }) => id === value.accountId)
       if (!amountCents || !account) return
       const category = categories.find(
-        ({ id, type }) => id === value.categoryId && type === value.type,
+        ({ id, type, active }) => id === value.categoryId && type === value.type && active,
       )
       if (transaction) {
         await updateMutation.mutateAsync({
@@ -132,6 +137,7 @@ export const TransactionForm = ({
             <Field>
               <FieldLabel htmlFor={field.name}>Tipo</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 onValueChange={(value) => field.handleChange(value as TransactionType)}
                 disabled={Boolean(transaction)}
@@ -145,6 +151,7 @@ export const TransactionForm = ({
             <Field>
               <FieldLabel htmlFor={field.name}>Situação</FieldLabel>
               <SearchableSelect
+                id={field.name}
                 value={field.state.value}
                 disabled={Boolean(transaction)}
                 onValueChange={(value) =>
@@ -165,11 +172,12 @@ export const TransactionForm = ({
           <Field>
             <FieldLabel htmlFor={field.name}>Conta</FieldLabel>
             <SearchableSelect
+              id={field.name}
               value={field.state.value}
               onValueChange={field.handleChange}
               placeholder="Selecione uma conta"
               searchPlaceholder="Buscar conta..."
-              options={accounts.map((account) => ({
+              options={availableAccounts.map((account) => ({
                 value: account.id,
                 label: account.name,
                 badge: account.currency,
@@ -185,12 +193,13 @@ export const TransactionForm = ({
               <Field>
                 <FieldLabel htmlFor={field.name}>Categoria</FieldLabel>
                 <SearchableSelect
+                  id={field.name}
                   value={field.state.value}
                   onValueChange={field.handleChange}
                   placeholder="Sem categoria"
                   searchPlaceholder="Buscar categoria..."
                   options={categories
-                    .filter((category) => category.type === type)
+                    .filter((category) => category.active && category.type === type)
                     .map((category) => ({ value: category.id, label: category.name }))}
                 />
               </Field>
@@ -254,7 +263,7 @@ export const TransactionForm = ({
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={mutation.isPending || accounts.length === 0}>
+        <Button type="submit" disabled={mutation.isPending || availableAccounts.length === 0}>
           {mutation.isPending && <Spinner className="mr-2 size-4" />}
           {transaction ? 'Salvar alterações' : 'Salvar transação'}
         </Button>

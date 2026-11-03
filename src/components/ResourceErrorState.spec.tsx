@@ -1,3 +1,4 @@
+import { ApiClientError } from '@/api/api-client.error'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ResourceErrorState } from './ResourceErrorState'
@@ -36,5 +37,18 @@ describe('ResourceErrorState', () => {
     expect(
       (screen.getByRole('button', { name: 'Tentar novamente' }) as HTMLButtonElement).disabled,
     ).toBe(true)
+  })
+
+  it('exibe a referência da requisição quando a API a fornece', () => {
+    render(
+      <ResourceErrorState
+        title="Falha"
+        error={new ApiClientError({ message: 'Falha', requestId: 'req-123' })}
+        fallbackMessage="Tente novamente."
+        onRetry={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('req-123')).toBeTruthy()
   })
 })

@@ -29,6 +29,9 @@ export interface SearchableSelectOption {
 }
 
 interface SearchableSelectProps {
+  readonly id?: string
+  readonly 'aria-label'?: string
+  readonly 'aria-labelledby'?: string
   readonly options: ReadonlyArray<SearchableSelectOption>
   readonly value?: string
   readonly onValueChange: (value: string) => void
@@ -48,6 +51,9 @@ interface SearchableSelectProps {
 }
 
 export const SearchableSelect = ({
+  id,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
   options,
   value,
   onValueChange,
@@ -125,6 +131,9 @@ export const SearchableSelect = ({
       <PopoverTrigger
         render={
           <Button
+            id={id}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
             type="button"
             variant="outline"
             size={size === 'sm' ? 'sm' : 'default'}

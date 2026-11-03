@@ -48,7 +48,8 @@ export const InvestmentOrderForm = ({
     validators: { onSubmit: investmentOrderFormSchema },
     onSubmit: async ({ value }) => {
       const instrument = instruments.data?.items.find((item) => item.id === value.instrumentId)
-      await mutation.mutateAsync({ ...value, currency: instrument?.currency ?? 'BRL' })
+      if (!instrument) return
+      await mutation.mutateAsync({ ...value, currency: instrument.currency })
       onSuccess?.()
     },
   })
@@ -63,8 +64,9 @@ export const InvestmentOrderForm = ({
       <form.Field name="investmentAccountId">
         {(field) => (
           <Field>
-            <FieldLabel>Conta</FieldLabel>
+            <FieldLabel htmlFor={field.name}>Conta</FieldLabel>
             <SearchableSelect
+              id={field.name}
               value={field.state.value}
               onValueChange={field.handleChange}
               placeholder="Selecione uma conta"
@@ -80,8 +82,9 @@ export const InvestmentOrderForm = ({
       <form.Field name="instrumentId">
         {(field) => (
           <Field>
-            <FieldLabel>Instrumento</FieldLabel>
+            <FieldLabel htmlFor={field.name}>Instrumento</FieldLabel>
             <SearchableSelect
+              id={field.name}
               value={field.state.value}
               onValueChange={field.handleChange}
               placeholder="Selecione um instrumento"

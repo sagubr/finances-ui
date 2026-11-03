@@ -1,7 +1,12 @@
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import {
+  getActiveWorkspaceBaseCurrency,
+  workspaceAccessStore,
+} from '@/modules/workspaces/store/workspace-access.store'
 import { useForm } from '@tanstack/react-form'
+import { useStore } from '@tanstack/react-store'
 import { z } from 'zod'
 import { wealthApi } from '../api/wealth.api'
 import type { Asset } from '../models/wealth.types'
@@ -27,11 +32,12 @@ export const AssetForm = ({
     asset ? wealthApi.updateAsset(asset, input) : Promise.reject(new Error('Missing asset')),
   )
   const mutation = asset ? updateMutation : createMutation
+  const baseCurrency = useStore(workspaceAccessStore, getActiveWorkspaceBaseCurrency)
   const form = useForm({
     defaultValues: {
       name: asset?.name ?? '',
       value: asset ? (asset.acquisitionCostCents / 100).toFixed(2).replace('.', ',') : '',
-      currency: asset?.currency ?? 'BRL',
+      currency: asset?.currency ?? baseCurrency ?? '',
     },
     validators: { onSubmit: assetFormSchema },
     onSubmit: async ({ value, formApi }) => {
@@ -100,7 +106,11 @@ export const AssetForm = ({
           </Field>
         )}
       </form.Field>
-      <Button type="submit" className="self-end" disabled={readOnly || mutation.isPending}>
+      <Button
+        type="submit"
+        className="self-end"
+        disabled={readOnly || mutation.isPending || (!asset && !baseCurrency)}
+      >
         {mutation.isPending ? 'Salvando…' : asset ? 'Salvar alterações' : 'Adicionar'}
       </Button>
     </form>

@@ -1,3 +1,4 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
   SidebarMenu,
@@ -27,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { Workspace } from '@/modules/workspaces/models/workspace.types'
 import { useCreateWorkspace, useWorkspaces, WORKSPACE_KEYS } from '@/modules/workspaces/queries'
 import {
+  getActiveWorkspaceBaseCurrency,
   setWorkspaceAccessActiveId,
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
@@ -37,18 +39,22 @@ import { Building2, Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { z } from 'zod'
 
-const workspaceSchema = z.object({ name: z.string().trim().min(2).max(120) })
+const workspaceSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  baseCurrency: z.string().trim().length(3, 'Informe a moeda base com três letras.'),
+})
 
 const CreateWorkspaceForm = ({ onSuccess }: Readonly<{ onSuccess: () => void }>) => {
   const mutation = useCreateWorkspace()
+  const activeBaseCurrency = useStore(workspaceAccessStore, getActiveWorkspaceBaseCurrency)
   const form = useForm({
-    defaultValues: { name: '' },
+    defaultValues: { name: '', baseCurrency: activeBaseCurrency ?? '' },
     validators: { onSubmit: workspaceSchema },
     onSubmit: async ({ value }) => {
       await mutation.mutateAsync({
         name: value.name.trim(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        baseCurrency: 'BRL',
+        baseCurrency: value.baseCurrency.toUpperCase(),
       })
       onSuccess()
     },
@@ -62,17 +68,43 @@ const CreateWorkspaceForm = ({ onSuccess }: Readonly<{ onSuccess: () => void }>)
       }}
     >
       <form.Field name="name">
-        {(field) => (
-          <Field>
-            <FieldLabel htmlFor="workspace-name">Nome do espaço financeiro</FieldLabel>
-            <Input
-              id="workspace-name"
-              value={field.state.value}
-              onChange={(event) => field.handleChange(event.target.value)}
-            />
-          </Field>
-        )}
+        {(field) => {
+          const invalid = field.state.meta.isTouched && !field.state.meta.isValid
+          return (
+            <Field data-invalid={invalid}>
+              <FieldLabel htmlFor="workspace-name">Nome do espaço financeiro</FieldLabel>
+              <Input
+                id="workspace-name"
+                value={field.state.value}
+                onChange={(event) => field.handleChange(event.target.value)}
+              />
+              {invalid && <FieldError errors={field.state.meta.errors} />}
+            </Field>
+          )
+        }}
       </form.Field>
+      <form.Field name="baseCurrency">
+        {(field) => {
+          const invalid = field.state.meta.isTouched && !field.state.meta.isValid
+          return (
+            <Field data-invalid={invalid}>
+              <FieldLabel htmlFor="workspace-base-currency">Moeda base</FieldLabel>
+              <Input
+                id="workspace-base-currency"
+                maxLength={3}
+                placeholder="Ex.: BRL"
+                value={field.state.value}
+                onChange={(event) => field.handleChange(event.target.value.toUpperCase())}
+              />
+              {invalid && <FieldError errors={field.state.meta.errors} />}
+            </Field>
+          )
+        }}
+      </form.Field>
+      <MutationErrorMessage
+        error={mutation.error}
+        fallbackMessage="Não foi possível criar o workspace."
+      />
       <Button type="submit" disabled={mutation.isPending}>
         {mutation.isPending ? 'Criando…' : 'Criar espaço financeiro'}
       </Button>
@@ -128,7 +160,7 @@ export function WorkspaceSwitcher() {
                 <Building2 className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Finanças</span>
+                <span className="truncate font-semibold">Nummo</span>
                 <span className="text-foreground/70 truncate text-xs">
                   {activeWorkspace?.name ?? 'Nenhum espaço financeiro'}
                 </span>

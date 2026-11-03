@@ -34,6 +34,22 @@ const fillRegistration = (password: string) => {
 }
 
 describe('Register', () => {
+  it('permite visualizar cada senha de forma independente', () => {
+    renderRegister()
+    const password = screen.getByLabelText('Senha')
+    const confirmation = screen.getByLabelText('Confirmar senha')
+
+    expect(password.getAttribute('type')).toBe('password')
+    expect(confirmation.getAttribute('type')).toBe('password')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar senha' }))
+    expect(password.getAttribute('type')).toBe('text')
+    expect(confirmation.getAttribute('type')).toBe('password')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar confirmar senha' }))
+    expect(confirmation.getAttribute('type')).toBe('text')
+  })
+
   it('não envia senha menor que doze caracteres', async () => {
     renderRegister()
     fillRegistration('curta')
@@ -45,6 +61,8 @@ describe('Register', () => {
   it('envia cadastro válido pelo contrato de identidade', async () => {
     registerUserMock.mockResolvedValueOnce({
       userId: '018f1f7e-7b5c-7a3d-8c9e-0123456789ab',
+      workspaceId: '018f1f7e-7b5c-7a3d-8c9e-0123456789ac',
+      emailConfirmationRequired: false,
     })
     renderRegister()
     fillRegistration('senha-segura-123')

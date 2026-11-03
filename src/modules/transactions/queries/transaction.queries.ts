@@ -1,3 +1,4 @@
+import { reportKeys } from '@/modules/reports/queries/report.queries'
 import { getActiveWorkspaceUuid } from '@/modules/workspaces/lib/workspace-selection'
 import {
   infiniteQueryOptions,
@@ -74,6 +75,7 @@ export const useCreateTransaction = (workspaceId = getActiveWorkspaceUuid()) => 
         queryClient.invalidateQueries({ queryKey: transactionKeys.lists(workspaceId) }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.all(workspaceId) }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
       ])
     },
   })
@@ -87,7 +89,7 @@ export const useCreateTransfer = (workspaceId = getActiveWorkspaceUuid()) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: transactionKeys.all(workspaceId) }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
-        queryClient.invalidateQueries({ queryKey: ['reports', workspaceId] }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
       ])
     },
   })
@@ -103,6 +105,7 @@ export const useUpdateTransaction = (workspaceId = getActiveWorkspaceUuid()) => 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: transactionKeys.all(workspaceId) }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
       ])
     },
   })
@@ -129,6 +132,7 @@ export const useTransactionAction = (
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: transactionKeys.all(workspaceId) }),
         queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
       ])
     },
   })
@@ -138,8 +142,12 @@ export const useCreateAccount = (workspaceId = getActiveWorkspaceUuid()) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: CreateAccountInput) => transactionsApi.createAccount(input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
+      ])
+    },
   })
 }
 
@@ -148,8 +156,12 @@ export const useUpdateAccount = (workspaceId = getActiveWorkspaceUuid()) => {
   return useMutation({
     mutationFn: ({ account, input }: { account: Account; input: CreateAccountInput }) =>
       transactionsApi.updateAccount(account, input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
+      ])
+    },
   })
 }
 
@@ -157,8 +169,12 @@ export const useRemoveAccount = (workspaceId = getActiveWorkspaceUuid()) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: transactionsApi.removeAccount,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: transactionKeys.accounts(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
+      ])
+    },
   })
 }
 
@@ -166,8 +182,13 @@ export const useCreateCategory = (workspaceId = getActiveWorkspaceUuid()) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: CreateCategoryInput) => transactionsApi.createCategory(input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: transactionKeys.categories(workspaceId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: transactionKeys.categories(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: ['planning', workspaceId] }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
+      ])
+    },
   })
 }
 
@@ -176,8 +197,13 @@ export const useUpdateCategory = (workspaceId = getActiveWorkspaceUuid()) => {
   return useMutation({
     mutationFn: ({ category, input }: { category: Category; input: CreateCategoryInput }) =>
       transactionsApi.updateCategory(category, input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: transactionKeys.categories(workspaceId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: transactionKeys.categories(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: ['planning', workspaceId] }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
+      ])
+    },
   })
 }
 
@@ -185,7 +211,12 @@ export const useRemoveCategory = (workspaceId = getActiveWorkspaceUuid()) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: transactionsApi.removeCategory,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: transactionKeys.categories(workspaceId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: transactionKeys.categories(workspaceId) }),
+        queryClient.invalidateQueries({ queryKey: ['planning', workspaceId] }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.root(workspaceId) }),
+      ])
+    },
   })
 }

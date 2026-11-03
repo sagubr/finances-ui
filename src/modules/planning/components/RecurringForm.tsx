@@ -1,3 +1,4 @@
+import { MutationErrorMessage } from '@/components/MutationErrorMessage'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
@@ -9,13 +10,16 @@ import {
   categoriesQueryOptions,
 } from '@/modules/transactions/queries/transaction.queries'
 import { parseMoneyToCents } from '@/modules/transactions/utils/money'
+import { workspaceAccessStore } from '@/modules/workspaces/store/workspace-access.store'
 import { formatDatePtBr, parseCivilDate, toCivilDate, todayCivilDate } from '@/utils/date'
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
+import { useStore } from '@tanstack/react-store'
 import { z } from 'zod'
 import { planningApi } from '../api/planning.api'
 import type { RecurringRule } from '../models/planning.types'
 import { cardsQuery, usePlanningMutation } from '../queries/planning.queries'
+import { resolveRecurringTimezone } from '../utils/recurrence'
 
 const recurringFormSchema = z
   .object({
@@ -76,6 +80,13 @@ export const RecurringForm = ({
   const accounts = useQuery(accountsQueryOptions())
   const categories = useQuery(categoriesQueryOptions())
   const cards = useQuery(cardsQuery())
+  const workspaceTimezone = useStore(
+    workspaceAccessStore,
+    (state) =>
+      state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId)?.timezone ??
+      '',
+  )
+  const timezone = resolveRecurringTimezone(rule?.timezone, workspaceTimezone)
   const createMutation = usePlanningMutation(planningApi.createRecurring)
   const updateMutation = usePlanningMutation(
     (input: Parameters<typeof planningApi.updateRecurring>[1]) =>
@@ -105,7 +116,7 @@ export const RecurringForm = ({
     onSubmit: async ({ value }) => {
       const amountCents = parseMoneyToCents(value.amount)
       if (!amountCents) return
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (!timezone) return
       const schedule = {
         description: value.description.trim(),
         amountCents,
@@ -122,7 +133,7 @@ export const RecurringForm = ({
         const selectedCard = cards.data?.items.find(({ id }) => id === value.creditCardId)
         if (value.target === 'CARD' && !selectedCard) return
         const accountId = value.target === 'CARD' ? selectedCard?.paymentAccountId : value.accountId
-        const account = accounts.data?.items.find(({ id }) => id === accountId)
+        const account = accounts.data?.items.find(({ id, active }) => id === accountId && active)
         if (!account) return
         await createMutation.mutateAsync({
           ...schedule,
@@ -164,8 +175,9 @@ export const RecurringForm = ({
       <form.Field name="target">
         {(field) => (
           <Field>
-            <FieldLabel>Destino</FieldLabel>
+            <FieldLabel htmlFor={field.name}>Destino</FieldLabel>
             <SearchableSelect
+              id={field.name}
               value={field.state.value}
               disabled={Boolean(rule)}
               onValueChange={(value) => {
@@ -200,8 +212,9 @@ export const RecurringForm = ({
             <form.Field name="type">
               {(field) => (
                 <Field>
-                  <FieldLabel>Tipo</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>Tipo</FieldLabel>
                   <SearchableSelect
+                    id={field.name}
                     value={target === 'CARD' ? 'EXPENSE' : field.state.value}
                     disabled={Boolean(rule) || target === 'CARD'}
                     onValueChange={(value) => field.handleChange(value as 'INCOME' | 'EXPENSE')}
@@ -219,8 +232,9 @@ export const RecurringForm = ({
                   const invalid = !field.state.meta.isValid
                   return (
                     <Field data-invalid={invalid}>
-                      <FieldLabel>Cartão</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>Cartão</FieldLabel>
                       <SearchableSelect
+                        id={field.name}
                         value={field.state.value}
                         disabled={Boolean(rule)}
                         onValueChange={field.handleChange}
@@ -244,8 +258,9 @@ export const RecurringForm = ({
                   const invalid = !field.state.meta.isValid
                   return (
                     <Field data-invalid={invalid}>
-                      <FieldLabel>Conta</FieldLabel>
+                      <FieldLabel htmlFor={field.name}>Conta</FieldLabel>
                       <SearchableSelect
+                        id={field.name}
                         value={field.state.value}
                         disabled={Boolean(rule)}
                         onValueChange={field.handleChange}
@@ -275,8 +290,9 @@ export const RecurringForm = ({
               const invalid = !field.state.meta.isValid
               return (
                 <Field data-invalid={invalid}>
-                  <FieldLabel>Categoria</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>Categoria</FieldLabel>
                   <SearchableSelect
+                    id={field.name}
                     value={field.state.value}
                     disabled={Boolean(rule)}
                     onValueChange={field.handleChange}
@@ -296,8 +312,9 @@ export const RecurringForm = ({
       <form.Field name="frequency">
         {(field) => (
           <Field>
-            <FieldLabel>Frequência</FieldLabel>
+            <FieldLabel htmlFor={field.name}>Frequência</FieldLabel>
             <SearchableSelect
+              id={field.name}
               value={field.state.value}
               onValueChange={(value) =>
                 field.handleChange(value as 'WEEKLY' | 'MONTHLY' | 'YEARLY')
@@ -333,8 +350,9 @@ export const RecurringForm = ({
             <form.Field name="dayOfWeek">
               {(field) => (
                 <Field>
-                  <FieldLabel>Dia da semana</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>Dia da semana</FieldLabel>
                   <SearchableSelect
+                    id={field.name}
                     value={String(field.state.value)}
                     onValueChange={(value) => field.handleChange(Number(value))}
                     options={weekdays.map((label, value) => ({ value: String(value), label }))}
@@ -406,11 +424,23 @@ export const RecurringForm = ({
           próximas ocorrências que ainda forem geradas.
         </p>
       )}
+      {!timezone && (
+        <p role="alert" className="text-destructive text-xs sm:col-span-2">
+          Não foi possível identificar o fuso horário do workspace. Recarregue a página antes de
+          salvar.
+        </p>
+      )}
+      <div className="sm:col-span-2">
+        <MutationErrorMessage
+          error={mutation.error}
+          fallbackMessage="Não foi possível salvar a recorrência."
+        />
+      </div>
       <DialogFooter className="sm:col-span-2">
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={readOnly || mutation.isPending}>
+        <Button type="submit" disabled={readOnly || mutation.isPending || !timezone}>
           {mutation.isPending ? 'Salvando…' : rule ? 'Salvar alterações' : 'Criar recorrência'}
         </Button>
       </DialogFooter>

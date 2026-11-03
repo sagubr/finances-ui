@@ -2,6 +2,7 @@ import { logoutUser, validateUserToken } from '@/api/auth'
 import type { SessionResponse } from '@/api/auth/type'
 import { registerSessionExpiredHandler } from '@/api/session-lifecycle'
 import { isAuthRoute } from '@/lib/auth-routes'
+import { clearActiveWorkspaceUuid } from '@/modules/workspaces/lib/workspace-selection'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
@@ -51,6 +52,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(
     async (saveRedirect = false) => {
       await logoutUser().catch(() => undefined)
+      clearActiveWorkspaceUuid()
       queryClient.clear()
       const path = window.location.pathname
       if (!isAuthRoute(path)) {

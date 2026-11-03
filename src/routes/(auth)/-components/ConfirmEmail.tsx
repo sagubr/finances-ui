@@ -1,14 +1,25 @@
 import { confirmEmail } from '@/api/auth'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, MailCheck } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, MailCheck } from 'lucide-react'
 import { z } from 'zod'
 import { AuthPageShell } from './AuthPageShell'
 
 const confirmationSchema = z.object({ token: z.string().trim().min(32) })
+
+const loginHeaderAction = (
+  <Link
+    to="/login"
+    className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs transition-colors sm:text-sm"
+  >
+    <ArrowLeft className="size-3.5" />
+    Voltar
+  </Link>
+)
 
 export const ConfirmEmail = ({ initialToken = '' }: Readonly<{ initialToken?: string }>) => {
   const mutation = useMutation({ mutationFn: confirmEmail })
@@ -19,11 +30,18 @@ export const ConfirmEmail = ({ initialToken = '' }: Readonly<{ initialToken?: st
   })
   if (mutation.isSuccess)
     return (
-      <AuthPageShell title="E-mail confirmado" description="Seu endereço foi validado com sucesso.">
+      <AuthPageShell
+        title="E-mail confirmado"
+        description="Seu endereço foi validado com sucesso."
+        eyebrow="Tudo certo"
+        headerAction={loginHeaderAction}
+      >
         <div className="flex flex-col items-center gap-4 text-center">
-          <CheckCircle2 className="size-10 text-emerald-600" />
-          <Link to="/login" className={buttonVariants({ className: 'w-full' })}>
-            Entrar na aplicação
+          <span className="bg-primary/10 flex size-14 items-center justify-center rounded-2xl">
+            <CheckCircle2 className="text-primary size-7" />
+          </span>
+          <Link to="/login" className={buttonVariants({ className: 'h-11 w-full rounded-xl' })}>
+            Entrar na Nummo <ArrowRight className="ml-1 size-4" />
           </Link>
         </div>
       </AuthPageShell>
@@ -32,43 +50,64 @@ export const ConfirmEmail = ({ initialToken = '' }: Readonly<{ initialToken?: st
     <AuthPageShell
       title="Confirmar e-mail"
       description="Confirme o endereço associado à sua conta."
+      eyebrow="Proteja sua conta"
+      headerAction={loginHeaderAction}
       footer={
-        <Link to="/resend-confirmation" className="text-primary font-medium">
+        <Link to="/resend-confirmation" className="text-foreground font-semibold hover:underline">
           Solicitar um novo código
         </Link>
       }
     >
       <form
-        className="grid gap-4"
+        className="grid gap-5"
         onSubmit={(event) => {
           event.preventDefault()
           void form.handleSubmit()
         }}
       >
-        <MailCheck className="text-primary mx-auto size-10" />
+        <span className="bg-primary/10 flex size-12 items-center justify-center rounded-2xl">
+          <MailCheck className="text-primary size-6" />
+        </span>
         <form.Field name="token">
-          {(field) => (
-            <label className="grid gap-2 text-sm font-medium" htmlFor="confirmation-token">
-              Código de confirmação
-              <Input
-                id="confirmation-token"
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
-                autoComplete="one-time-code"
-              />
-            </label>
-          )}
+          {(field) => {
+            const invalid = field.state.meta.isTouched && !field.state.meta.isValid
+
+            return (
+              <Field data-invalid={invalid}>
+                <FieldLabel htmlFor="confirmation-token">Código de confirmação</FieldLabel>
+                <Input
+                  id="confirmation-token"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  autoComplete="one-time-code"
+                  placeholder="Cole o código recebido por e-mail"
+                  aria-invalid={invalid}
+                  className="h-11 rounded-xl px-3.5"
+                />
+                {invalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            )
+          }}
         </form.Field>
         {mutation.isError && (
-          <p role="alert" className="text-destructive text-sm">
+          <p
+            role="alert"
+            className="border-destructive/20 bg-destructive/5 text-destructive rounded-xl border px-3 py-2 text-sm"
+          >
             O código é inválido ou expirou.
           </p>
         )}
         <form.Subscribe selector={(state) => state.canSubmit}>
           {(canSubmit) => (
-            <Button type="submit" disabled={!canSubmit || mutation.isPending}>
+            <Button
+              type="submit"
+              size="lg"
+              className="h-11 rounded-xl"
+              disabled={!canSubmit || mutation.isPending}
+            >
               {mutation.isPending ? 'Confirmando…' : 'Confirmar e-mail'}
+              {!mutation.isPending && <ArrowRight className="ml-1 size-4" />}
             </Button>
           )}
         </form.Subscribe>
