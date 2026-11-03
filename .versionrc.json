@@ -1,0 +1,22 @@
+{
+  "packageFiles": [
+    {
+      "filename": "package.json",
+      "type": "json"
+    },
+    {
+      "filename": "apps/ui/package.json",
+      "type": "json"
+    }
+  ],
+  "bumpFiles": [
+    {
+      "filename": "package.json",
+      "type": "json"
+    },
+    {
+      "filename": "apps/ui/package.json",
+      "type": "json"
+    }
+  ]
+}

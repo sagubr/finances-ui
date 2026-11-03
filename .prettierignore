@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+coverage
+.vite
+.turbo
+*.tsbuildinfo
+apps/ui/src/routeTree.gen.ts
+src/routeTree.gen.ts
+apps/ui/.env
+apps/ui/.env.*
+!apps/ui/.env.example

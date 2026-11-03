@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="gradFinance" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22A06B"/>
+      <stop offset="1" stop-color="#087F5B"/>
+    </linearGradient>
+    <style>
+      .bg { fill: url(#gradFinance); }
+      .glyph { fill: #FFFFFF; }
+      @media (prefers-color-scheme: dark) {
+        .bg { fill: #10241F; }
+        .glyph { fill: url(#gradFinance); }
+      }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="100" height="100" rx="22"/>
+  <g class="glyph" transform="translate(19.00,17.14) scale(0.62)">
+    <path d="M25.0,70 L25.0,44.0 L31.0,37.0 L37.0,44.0 L37.0,70 Z" /><path d="M44.0,70 L44.0,27.0 L50.0,20.0 L56.0,27.0 L56.0,70 Z" /><path d="M63.0,70 L63.0,38.0 L69.0,31.0 L75.0,38.0 L75.0,70 Z" /><rect x="21" y="74" width="58" height="7" rx="3.5" /><circle cx="50.0" cy="17.0" r="4.4" />
+  </g>
+</svg>

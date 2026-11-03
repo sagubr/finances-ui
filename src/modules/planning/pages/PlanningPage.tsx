@@ -1,0 +1,943 @@
+import { ResourceErrorState } from '@/components/ResourceErrorState'
+import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
+import Table from '@/components/Table'
+import { civilDateColumn, competenceColumn } from '@/components/Table/columns/date.columns'
+import { TooltipButton } from '@/components/TooltipButton'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { useResourceViewMode } from '@/hooks/use-resource-view-mode'
+import { getDomainLabel } from '@/lib/domain-labels'
+import { useCompetenceMonth } from '@/modules/competence/store/competence.store'
+import { formatMoney } from '@/modules/transactions/utils/money'
+import {
+  getActiveWorkspaceRole,
+  workspaceAccessStore,
+} from '@/modules/workspaces/store/workspace-access.store'
+import { formatCompetencePtBr, formatDatePtBr } from '@/utils/date'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { useStore } from '@tanstack/react-store'
+import type { ColumnDef } from '@tanstack/react-table'
+import {
+  CalendarClock,
+  CopyPlus,
+  Pause,
+  Pencil,
+  Play,
+  ReceiptText,
+  Repeat2,
+  Target,
+  Trash2,
+  WalletCards,
+} from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { planningApi } from '../api/planning.api'
+import { BudgetForm } from '../components/BudgetForm'
+import { CreditCardForm } from '../components/CreditCardForm'
+import { RecurringForm } from '../components/RecurringForm'
+import { InstallmentForm } from '../components/ScheduleForms'
+import type { Budget, CreditCard, InstallmentPlan, RecurringRule } from '../models/planning.types'
+import {
+  budgetProgressQuery,
+  budgetsQuery,
+  cardsQuery,
+  installmentsQuery,
+  recurringQuery,
+  usePlanningMutation,
+} from '../queries/planning.queries'
+
+type DialogName = 'budget' | 'recurring' | 'card' | 'installment' | null
+export type PlanningSection = 'budgets' | 'recurring' | 'cards' | 'installments'
+
+const sectionContent: Record<PlanningSection, Readonly<{ title: string; description: string }>> = {
+  budgets: {
+    title: 'Orçamentos',
+    description: 'Defina limites por categoria para a competência selecionada.',
+  },
+  recurring: {
+    title: 'Recorrências',
+    description: 'Automatize os lançamentos financeiros que se repetem.',
+  },
+  cards: {
+    title: 'Cartões',
+    description: 'Gerencie limites, fechamento e vencimento dos cartões.',
+  },
+  installments: {
+    title: 'Parcelamentos',
+    description: 'Crie todas as parcelas e competências em uma única ação.',
+  },
+}
+
+const previousMonth = (month: string) => {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const date = new Date(year, monthNumber - 2, 1)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>) => {
+  const navigate = useNavigate()
+  const month = useCompetenceMonth()
+  const budgets = useQuery({ ...budgetsQuery(month), enabled: section === 'budgets' })
+  const budgetProgress = useQuery({
+    ...budgetProgressQuery(month),
+    enabled: section === 'budgets',
+  })
+  const recurring = useQuery({ ...recurringQuery(), enabled: section === 'recurring' })
+  const cards = useQuery({ ...cardsQuery(), enabled: section === 'cards' })
+  const installments = useQuery({
+    ...installmentsQuery(),
+    enabled: section === 'installments',
+  })
+  const toggle = usePlanningMutation((rule: RecurringRule) => planningApi.toggleRecurring(rule))
+  const readOnly = useStore(workspaceAccessStore, getActiveWorkspaceRole) === 'VIEWER'
+  const [dialog, setDialog] = useState<DialogName>(null)
+  const [toggleRule, setToggleRule] = useState<RecurringRule | null>(null)
+  const [editingRule, setEditingRule] = useState<RecurringRule | null>(null)
+  const [deletingRule, setDeletingRule] = useState<RecurringRule | null>(null)
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
+  const [deletingBudget, setDeletingBudget] = useState<Budget | null>(null)
+  const [copyingBudgets, setCopyingBudgets] = useState(false)
+  const [editingCard, setEditingCard] = useState<CreditCard | null>(null)
+  const [deletingCard, setDeletingCard] = useState<CreditCard | null>(null)
+  const [editingInstallment, setEditingInstallment] = useState<InstallmentPlan | null>(null)
+  const [deletingInstallment, setDeletingInstallment] = useState<InstallmentPlan | null>(null)
+  const [budgetView, setBudgetView] = useResourceViewMode('planning-budgets', 'list')
+  const [recurringView, setRecurringView] = useResourceViewMode('planning-recurring', 'list')
+  const [cardView, setCardView] = useResourceViewMode('planning-cards', 'list')
+  const [installmentView, setInstallmentView] = useResourceViewMode('planning-installments', 'list')
+  const removeBudget = usePlanningMutation(planningApi.removeBudget)
+  const copyBudgets = usePlanningMutation((sourceMonth: string) =>
+    planningApi.copyBudgets(sourceMonth, month),
+  )
+  const removeRecurring = usePlanningMutation(planningApi.removeRecurring)
+  const removeCard = usePlanningMutation(planningApi.removeCard)
+  const removeInstallment = usePlanningMutation(planningApi.removeInstallments)
+  const budgetColumns = useMemo<ColumnDef<Budget>[]>(() => {
+    const progressById = new Map(
+      (budgetProgress.data?.items ?? []).map((progress) => [progress.id, progress]),
+    )
+    return [
+      {
+        id: 'category',
+        header: 'Categoria / grupo',
+        size: 320,
+        cell: ({ row }) => row.original.categoryName,
+      },
+      competenceColumn<Budget>('month', { header: 'Competência', size: 160 }),
+      {
+        accessorKey: 'limitCents',
+        header: 'Limite',
+        size: 180,
+        cell: ({ row }) => formatMoney(row.original.limitCents, row.original.currency),
+      },
+      {
+        id: 'realized',
+        header: 'Realizado',
+        size: 170,
+        cell: ({ row }) => {
+          const progress = progressById.get(row.original.id)
+          return formatMoney(progress?.realizedCents ?? 0, row.original.currency)
+        },
+      },
+      {
+        id: 'planned',
+        header: 'Planejado',
+        size: 170,
+        cell: ({ row }) => {
+          const progress = progressById.get(row.original.id)
+          return formatMoney(progress?.plannedCents ?? 0, row.original.currency)
+        },
+      },
+      {
+        id: 'consumption',
+        header: 'Consumo',
+        size: 130,
+        cell: ({ row }) => {
+          const consumptionBps = progressById.get(row.original.id)?.consumptionBps
+          return consumptionBps === null || consumptionBps === undefined
+            ? '—'
+            : `${(consumptionBps / 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+        },
+      },
+      {
+        id: 'actions',
+        header: 'Ações',
+        size: 120,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <TooltipButton
+              title="Editar orçamento"
+              size="icon"
+              variant="ghost"
+              disabled={readOnly}
+              onClick={() => setEditingBudget(row.original)}
+            >
+              <Pencil className="size-4" />
+            </TooltipButton>
+            <TooltipButton
+              title="Excluir orçamento"
+              size="icon"
+              variant="ghost"
+              disabled={readOnly}
+              onClick={() => setDeletingBudget(row.original)}
+            >
+              <Trash2 className="text-destructive size-4" />
+            </TooltipButton>
+          </div>
+        ),
+      },
+    ]
+  }, [budgetProgress.data?.items, readOnly])
+  const recurringColumns = useMemo<ColumnDef<RecurringRule>[]>(
+    () => [
+      { accessorKey: 'description', header: 'Descrição', size: 320 },
+      {
+        accessorKey: 'amountCents',
+        header: 'Valor',
+        size: 160,
+        cell: ({ row }) => formatMoney(row.original.amountCents, row.original.currency),
+      },
+      {
+        id: 'destination',
+        header: 'Destino',
+        size: 190,
+        cell: ({ row }) => row.original.creditCardName ?? 'Conta',
+      },
+      civilDateColumn<RecurringRule>('nextOccurrenceOn', {
+        header: 'Próxima ocorrência',
+        size: 180,
+      }),
+      {
+        id: 'status',
+        header: 'Situação',
+        size: 130,
+        cell: ({ row }) => (row.original.pausedAt ? 'Pausada' : 'Ativa'),
+      },
+      {
+        id: 'actions',
+        header: 'Ações',
+        size: 180,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <TooltipButton
+              title={row.original.pausedAt ? 'Retomar recorrência' : 'Pausar recorrência'}
+              variant="ghost"
+              size="icon"
+              disabled={readOnly}
+              onClick={() => setToggleRule(row.original)}
+            >
+              {row.original.pausedAt ? <Play /> : <Pause />}
+            </TooltipButton>
+            <TooltipButton
+              title="Editar recorrência"
+              variant="ghost"
+              size="icon"
+              disabled={readOnly}
+              onClick={() => setEditingRule(row.original)}
+            >
+              <Pencil />
+            </TooltipButton>
+            <TooltipButton
+              title="Excluir recorrência"
+              variant="ghost"
+              size="icon"
+              disabled={readOnly}
+              onClick={() => setDeletingRule(row.original)}
+            >
+              <Trash2 className="text-destructive" />
+            </TooltipButton>
+          </div>
+        ),
+      },
+    ],
+    [readOnly],
+  )
+  const cardColumns = useMemo<ColumnDef<CreditCard>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Cartão',
+        size: 300,
+        cell: ({ row }) =>
+          `${row.original.name}${row.original.lastFour ? ` •••• ${row.original.lastFour}` : ''}`,
+      },
+      {
+        accessorKey: 'limitCents',
+        header: 'Limite',
+        size: 180,
+        cell: ({ row }) => formatMoney(row.original.limitCents, row.original.currency),
+      },
+      {
+        accessorKey: 'closingDay',
+        header: 'Fechamento',
+        size: 140,
+        cell: ({ row }) => `Dia ${row.original.closingDay}`,
+      },
+      {
+        accessorKey: 'dueDay',
+        header: 'Vencimento',
+        size: 140,
+        cell: ({ row }) => `Dia ${row.original.dueDay}`,
+      },
+      {
+        id: 'actions',
+        header: 'Ações',
+        size: 160,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <TooltipButton
+              title="Gerenciar faturas"
+              size="icon"
+              variant="ghost"
+              onClick={() =>
+                void navigate({ to: '/cards/$cardId', params: { cardId: row.original.id } })
+              }
+            >
+              <ReceiptText />
+            </TooltipButton>
+            <TooltipButton
+              title="Editar cartão"
+              size="icon"
+              variant="ghost"
+              disabled={readOnly}
+              onClick={() => setEditingCard(row.original)}
+            >
+              <Pencil />
+            </TooltipButton>
+            <TooltipButton
+              title="Excluir cartão"
+              size="icon"
+              variant="ghost"
+              disabled={readOnly}
+              onClick={() => setDeletingCard(row.original)}
+            >
+              <Trash2 className="text-destructive" />
+            </TooltipButton>
+          </div>
+        ),
+      },
+    ],
+    [navigate, readOnly],
+  )
+  const installmentColumns = useMemo<ColumnDef<InstallmentPlan>[]>(
+    () => [
+      { accessorKey: 'description', header: 'Descrição', size: 320 },
+      {
+        id: 'destination',
+        header: 'Destino',
+        size: 190,
+        cell: ({ row }) => row.original.creditCardName ?? 'Conta',
+      },
+      {
+        accessorKey: 'totalAmountCents',
+        header: 'Valor total',
+        size: 180,
+        cell: ({ row }) => formatMoney(row.original.totalAmountCents, row.original.currency),
+      },
+      { accessorKey: 'installments', header: 'Parcelas', size: 120 },
+      civilDateColumn<InstallmentPlan>('firstDueOn', {
+        header: 'Primeiro vencimento',
+        size: 180,
+      }),
+      {
+        id: 'actions',
+        header: 'Ações',
+        size: 120,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <TooltipButton
+              title={
+                row.original.creditCardId
+                  ? 'Parcelamentos do cartão são controlados pelas faturas'
+                  : 'Editar parcelamento'
+              }
+              size="icon"
+              variant="ghost"
+              disabled={readOnly || Boolean(row.original.creditCardId)}
+              onClick={() => setEditingInstallment(row.original)}
+            >
+              <Pencil />
+            </TooltipButton>
+            <TooltipButton
+              title={
+                row.original.creditCardId
+                  ? 'Parcelamentos do cartão são controlados pelas faturas'
+                  : 'Excluir parcelamento'
+              }
+              size="icon"
+              variant="ghost"
+              disabled={readOnly || Boolean(row.original.creditCardId)}
+              onClick={() => setDeletingInstallment(row.original)}
+            >
+              <Trash2 className="text-destructive" />
+            </TooltipButton>
+          </div>
+        ),
+      },
+    ],
+    [readOnly],
+  )
+  const table = <T extends { id: string }>(columns: ColumnDef<T>[], data: T[]) => (
+    <div className="h-[480px] rounded-xl border">
+      <Table<T>
+        columns={columns}
+        data={data}
+        getRowId={(item) => item.id}
+        enableRowSelection={false}
+        shouldRenderCheckbox={false}
+      />
+    </div>
+  )
+  const close = () => setDialog(null)
+  const content = sectionContent[section]
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">{content.title}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{content.description}</p>
+        </div>
+      </header>
+      {section === 'budgets' && (
+        <section className="space-y-4">
+          <ResourceViewToolbar
+            count={budgets.data?.items.length ?? 0}
+            label="orçamentos"
+            viewMode={budgetView}
+            onViewModeChange={setBudgetView}
+            onCreate={() => setDialog('budget')}
+            createLabel="Novo orçamento"
+            createDisabled={readOnly}
+            actions={
+              <TooltipButton
+                title={`Copiar orçamentos de ${formatCompetencePtBr(previousMonth(month))}`}
+                size="icon"
+                variant="ghost"
+                className="size-8"
+                disabled={readOnly || (budgets.data?.items.length ?? 0) > 0}
+                onClick={() => setCopyingBudgets(true)}
+              >
+                <CopyPlus className="size-4" />
+              </TooltipButton>
+            }
+          />
+          {budgetView === 'list' ? (
+            table(budgetColumns, budgets.data?.items ?? [])
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {budgets.data?.items.map((budget) => (
+                <Card
+                  key={budget.id}
+                  className="hover:border-primary/40 flex flex-col justify-between transition-all hover:shadow-xs"
+                >
+                  <CardHeader className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground text-xs">
+                        {formatCompetencePtBr(budget.month)}
+                      </span>
+                      <span className="text-muted-foreground text-[11px]">{budget.currency}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Target className="text-primary mt-0.5 size-4" />
+                      <CardTitle className="truncate text-base">{budget.categoryName}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="text-xl font-semibold">
+                    {formatMoney(budget.limitCents, budget.currency)}
+                    {(() => {
+                      const progress = budgetProgress.data?.items.find(({ id }) => id === budget.id)
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (progress?.consumptionBps ?? 0) / 100),
+                      )
+                      return (
+                        <div className="mt-4 space-y-2">
+                          <div className="bg-muted h-1.5 overflow-hidden rounded-full">
+                            <div
+                              className="bg-primary h-full rounded-full"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <p className="text-muted-foreground text-xs font-normal">
+                            {formatMoney(progress?.realizedCents ?? 0, budget.currency)} realizado ·{' '}
+                            {formatMoney(progress?.plannedCents ?? 0, budget.currency)} planejado
+                          </p>
+                        </div>
+                      )
+                    })()}
+                  </CardContent>
+                  <CardFooter className="flex gap-2 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1 rounded-full"
+                      disabled={readOnly}
+                      onClick={() => setEditingBudget(budget)}
+                    >
+                      <Pencil /> Editar
+                    </Button>
+                    <TooltipButton
+                      title="Excluir orçamento"
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive size-8 rounded-full"
+                      disabled={readOnly}
+                      onClick={() => setDeletingBudget(budget)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </TooltipButton>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      {section === 'recurring' && (
+        <section className="space-y-4">
+          <ResourceViewToolbar
+            count={recurring.data?.items.length ?? 0}
+            label="recorrências"
+            viewMode={recurringView}
+            onViewModeChange={setRecurringView}
+            onCreate={() => setDialog('recurring')}
+            createLabel="Nova recorrência"
+            createDisabled={readOnly}
+          />
+          {recurringView === 'list' ? (
+            table(recurringColumns, recurring.data?.items ?? [])
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {recurring.data?.items.map((rule) => (
+                <Card
+                  key={rule.id}
+                  className="hover:border-primary/40 flex flex-col justify-between transition-all hover:shadow-xs"
+                >
+                  <CardHeader className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground text-xs">
+                        {rule.pausedAt ? 'Pausada' : 'Ativa'}
+                      </span>
+                      <span className="text-muted-foreground text-[11px]">
+                        {getDomainLabel(rule.frequency)}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Repeat2 className="text-primary mt-0.5 size-4" />
+                      <CardTitle className="truncate text-base">{rule.description}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xl font-semibold">
+                      {formatMoney(rule.amountCents, rule.currency)}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Próxima em {formatDatePtBr(rule.nextOccurrenceOn)}
+                    </p>
+                  </CardContent>
+                  <CardFooter className="gap-2 border-t pt-3">
+                    <TooltipButton
+                      title={rule.pausedAt ? 'Retomar recorrência' : 'Pausar recorrência'}
+                      variant="outline"
+                      size="icon"
+                      className="size-8 rounded-full"
+                      disabled={readOnly}
+                      onClick={() => setToggleRule(rule)}
+                    >
+                      {rule.pausedAt ? <Play /> : <Pause />}
+                    </TooltipButton>
+                    <TooltipButton
+                      title="Editar recorrência"
+                      variant="outline"
+                      size="icon"
+                      className="size-8 rounded-full"
+                      disabled={readOnly}
+                      onClick={() => setEditingRule(rule)}
+                    >
+                      <Pencil />
+                    </TooltipButton>
+                    <TooltipButton
+                      title="Excluir recorrência"
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive size-8 rounded-full"
+                      disabled={readOnly}
+                      onClick={() => setDeletingRule(rule)}
+                    >
+                      <Trash2 />
+                    </TooltipButton>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      {section === 'cards' && (
+        <section className="space-y-4">
+          <ResourceViewToolbar
+            count={cards.data?.items.length ?? 0}
+            label="cartões"
+            viewMode={cardView}
+            onViewModeChange={setCardView}
+            onCreate={() => setDialog('card')}
+            createLabel="Novo cartão"
+            createDisabled={readOnly}
+          />
+          {cardView === 'list' ? (
+            table(cardColumns, cards.data?.items ?? [])
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {cards.data?.items.map((card) => (
+                <Card
+                  key={card.id}
+                  className="hover:border-primary/40 transition-all hover:shadow-xs"
+                >
+                  <CardHeader className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground text-xs">
+                        {card.active ? 'Ativo' : 'Inativo'}
+                      </span>
+                      <span className="text-muted-foreground text-[11px]">
+                        {card.lastFour ? `•••• ${card.lastFour}` : card.currency}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <WalletCards className="text-primary mt-0.5 size-4" />
+                      <CardTitle className="text-base">{card.name}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xl font-semibold">
+                      {formatMoney(card.limitCents, card.currency)}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Fecha dia {card.closingDay} · vence dia {card.dueDay}
+                    </p>
+                  </CardContent>
+                  <CardFooter className="flex gap-2 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1 rounded-full"
+                      onClick={() =>
+                        void navigate({ to: '/cards/$cardId', params: { cardId: card.id } })
+                      }
+                    >
+                      <ReceiptText /> Faturas
+                    </Button>
+                    <TooltipButton
+                      title="Editar cartão"
+                      variant="outline"
+                      size="icon"
+                      className="size-8 rounded-full"
+                      disabled={readOnly}
+                      onClick={() => setEditingCard(card)}
+                    >
+                      <Pencil />
+                    </TooltipButton>
+                    <TooltipButton
+                      title="Excluir cartão"
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive size-8 rounded-full"
+                      disabled={readOnly}
+                      onClick={() => setDeletingCard(card)}
+                    >
+                      <Trash2 />
+                    </TooltipButton>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      {section === 'installments' && (
+        <section className="space-y-4">
+          <ResourceViewToolbar
+            count={installments.data?.items.length ?? 0}
+            label="parcelamentos"
+            viewMode={installmentView}
+            onViewModeChange={setInstallmentView}
+            onCreate={() => setDialog('installment')}
+            createLabel="Novo parcelamento"
+            createDisabled={readOnly}
+          />
+          {installments.isError ? (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar os parcelamentos"
+              error={installments.error}
+              fallbackMessage="Tente carregar a lista novamente."
+              isRetrying={installments.isFetching}
+              onRetry={() => void installments.refetch()}
+            />
+          ) : installmentView === 'list' ? (
+            table(installmentColumns, installments.data?.items ?? [])
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {installments.data?.items.map((plan) => (
+                <Card
+                  key={plan.id}
+                  className="hover:border-primary/40 transition-all hover:shadow-xs"
+                >
+                  <CardHeader className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground text-xs">
+                        {plan.installments} parcelas · {plan.creditCardName ?? 'Conta'}
+                      </span>
+                      <span className="text-muted-foreground text-[11px]">{plan.currency}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CalendarClock className="text-primary mt-0.5 size-4" />
+                      <CardTitle className="truncate text-base">{plan.description}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xl font-semibold">
+                      {formatMoney(plan.totalAmountCents, plan.currency)}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Primeira parcela em {formatDatePtBr(plan.firstDueOn)}
+                    </p>
+                  </CardContent>
+                  <CardFooter className="flex gap-2 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1 rounded-full"
+                      disabled={readOnly || Boolean(plan.creditCardId)}
+                      onClick={() => setEditingInstallment(plan)}
+                    >
+                      <Pencil /> Editar
+                    </Button>
+                    <TooltipButton
+                      title="Excluir parcelamento"
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive size-8 rounded-full"
+                      disabled={readOnly || Boolean(plan.creditCardId)}
+                      onClick={() => setDeletingInstallment(plan)}
+                    >
+                      <Trash2 />
+                    </TooltipButton>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      <Dialog open={dialog !== null} onOpenChange={(open) => !open && close()}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {dialog === 'budget'
+                ? 'Novo orçamento'
+                : dialog === 'recurring'
+                  ? 'Nova recorrência'
+                  : dialog === 'card'
+                    ? 'Novo cartão'
+                    : 'Novo parcelamento'}
+            </DialogTitle>
+            <DialogDescription>
+              Preencha os dados para adicionar o item às suas finanças.
+            </DialogDescription>
+          </DialogHeader>
+          {dialog === 'budget' && (
+            <BudgetForm month={month} readOnly={readOnly} onCancel={close} onSuccess={close} />
+          )}
+          {dialog === 'recurring' && (
+            <RecurringForm readOnly={readOnly} onCancel={close} onSuccess={close} />
+          )}
+          {dialog === 'card' && (
+            <CreditCardForm readOnly={readOnly} onCancel={close} onSuccess={close} />
+          )}
+          {dialog === 'installment' && (
+            <InstallmentForm readOnly={readOnly} onCancel={close} onSuccess={close} />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(editingBudget)}
+        onOpenChange={(open) => !open && setEditingBudget(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar orçamento</DialogTitle>
+            <DialogDescription>Atualize o limite do orçamento selecionado.</DialogDescription>
+          </DialogHeader>
+          {editingBudget && (
+            <BudgetForm
+              key={editingBudget.id}
+              budget={editingBudget}
+              month={month}
+              readOnly={readOnly}
+              onCancel={() => setEditingBudget(null)}
+              onSuccess={() => setEditingBudget(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(editingCard)} onOpenChange={(open) => !open && setEditingCard(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar cartão</DialogTitle>
+            <DialogDescription>Atualize os dados do cartão.</DialogDescription>
+          </DialogHeader>
+          {editingCard && (
+            <CreditCardForm
+              key={editingCard.id}
+              card={editingCard}
+              readOnly={readOnly}
+              onCancel={() => setEditingCard(null)}
+              onSuccess={() => setEditingCard(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(editingRule)} onOpenChange={(open) => !open && setEditingRule(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar recorrência</DialogTitle>
+            <DialogDescription>Atualize a descrição e o valor da recorrência.</DialogDescription>
+          </DialogHeader>
+          {editingRule && (
+            <RecurringForm
+              key={editingRule.id}
+              rule={editingRule}
+              readOnly={readOnly}
+              onCancel={() => setEditingRule(null)}
+              onSuccess={() => setEditingRule(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(editingInstallment)}
+        onOpenChange={(open) => !open && setEditingInstallment(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar parcelamento</DialogTitle>
+            <DialogDescription>
+              Atualize as parcelas ainda planejadas. A quantidade de parcelas é preservada.
+            </DialogDescription>
+          </DialogHeader>
+          {editingInstallment && (
+            <InstallmentForm
+              key={editingInstallment.id}
+              plan={editingInstallment}
+              readOnly={readOnly}
+              onCancel={() => setEditingInstallment(null)}
+              onSuccess={() => setEditingInstallment(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      {toggleRule && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setToggleRule(null)}
+          title={toggleRule.pausedAt ? 'Retomar recorrência?' : 'Pausar recorrência?'}
+          description="A alteração afetará as próximas ocorrências geradas."
+          confirmText={toggleRule.pausedAt ? 'Retomar' : 'Pausar'}
+          type="warning"
+          isPending={toggle.isPending}
+          onConfirm={async () => {
+            await toggle.mutateAsync(toggleRule)
+            setToggleRule(null)
+          }}
+        />
+      )}
+      {deletingBudget && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setDeletingBudget(null)}
+          title="Excluir orçamento?"
+          description="O limite será removido desta competência."
+          confirmText="Excluir orçamento"
+          type="danger"
+          variant="destructive"
+          isPending={removeBudget.isPending}
+          onConfirm={async () => {
+            await removeBudget.mutateAsync(deletingBudget)
+            setDeletingBudget(null)
+          }}
+        />
+      )}
+      {copyingBudgets && (
+        <ConfirmDialog
+          open
+          onOpenChange={setCopyingBudgets}
+          title="Copiar orçamentos do mês anterior?"
+          description={`A estrutura de ${formatCompetencePtBr(previousMonth(month))} será copiada para ${formatCompetencePtBr(month)}. Os valores poderão ser editados depois.`}
+          confirmText="Copiar orçamentos"
+          type="info"
+          isPending={copyBudgets.isPending}
+          onConfirm={async () => {
+            await copyBudgets.mutateAsync(previousMonth(month))
+            setCopyingBudgets(false)
+          }}
+        />
+      )}
+      {deletingRule && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setDeletingRule(null)}
+          title="Excluir recorrência?"
+          description="A regra e as ocorrências ainda planejadas serão removidas. Lançamentos já confirmados serão preservados."
+          confirmText="Excluir recorrência"
+          type="danger"
+          variant="destructive"
+          isPending={removeRecurring.isPending}
+          onConfirm={async () => {
+            await removeRecurring.mutateAsync(deletingRule)
+            setDeletingRule(null)
+          }}
+        />
+      )}
+      {deletingCard && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setDeletingCard(null)}
+          title="Excluir cartão?"
+          description="O cartão será desativado e seu histórico de faturas será preservado."
+          confirmText="Excluir cartão"
+          type="danger"
+          variant="destructive"
+          isPending={removeCard.isPending}
+          onConfirm={async () => {
+            await removeCard.mutateAsync(deletingCard)
+            setDeletingCard(null)
+          }}
+        />
+      )}
+      {deletingInstallment && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setDeletingInstallment(null)}
+          title="Excluir parcelamento?"
+          description="As parcelas ainda planejadas serão removidas. Parcelamentos com parcelas confirmadas não podem ser excluídos."
+          confirmText="Excluir parcelamento"
+          type="danger"
+          variant="destructive"
+          isPending={removeInstallment.isPending}
+          onConfirm={async () => {
+            await removeInstallment.mutateAsync(deletingInstallment)
+            setDeletingInstallment(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}

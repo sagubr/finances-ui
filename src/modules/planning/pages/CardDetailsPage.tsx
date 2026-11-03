@@ -1,0 +1,489 @@
+import { ResourceErrorState } from '@/components/ResourceErrorState'
+import Table from '@/components/Table'
+import { TooltipButton } from '@/components/TooltipButton'
+import { buttonVariants } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { SearchableSelect } from '@/components/ui/searchable-select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getDomainLabel } from '@/lib/domain-labels'
+import { cn } from '@/lib/utils'
+import { formatMoney } from '@/modules/transactions/utils/money'
+import {
+  getActiveWorkspaceRole,
+  workspaceAccessStore,
+} from '@/modules/workspaces/store/workspace-access.store'
+import { formatDatePtBr } from '@/utils/date'
+import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { useStore } from '@tanstack/react-store'
+import type { ColumnDef } from '@tanstack/react-table'
+import { ArrowLeft, HandCoins, Pencil, ReceiptText, Search, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { planningApi } from '../api/planning.api'
+import { CardPurchaseForm } from '../components/CardPurchaseForm'
+import { StatementPaymentForm } from '../components/StatementPaymentForm'
+import { StatementTimeline } from '../components/StatementTimeline'
+import type { Statement, StatementPurchase } from '../models/planning.types'
+import {
+  cardsQuery,
+  statementQuery,
+  statementsQuery,
+  useDeleteCardPurchase,
+  usePlanningMutation,
+} from '../queries/planning.queries'
+
+export type StatementStatusFilter = Statement['status'] | 'ALL'
+export type CardStatementView = 'current' | 'statements'
+
+export const CardDetailsPage = ({
+  cardId,
+  statementId,
+  status,
+  search,
+  view,
+  onFiltersChange,
+}: Readonly<{
+  cardId: string
+  statementId?: string
+  status: StatementStatusFilter
+  search: string
+  view: CardStatementView
+  onFiltersChange: (filters: {
+    statementId?: string
+    status?: StatementStatusFilter
+    search?: string
+    view?: CardStatementView
+  }) => void
+}>) => {
+  const readOnly = useStore(workspaceAccessStore, getActiveWorkspaceRole) === 'VIEWER'
+  const cards = useQuery(cardsQuery())
+  const statements = useQuery(statementsQuery(cardId))
+  const card = cards.data?.items.find(({ id }) => id === cardId)
+  const orderedStatements = useMemo(
+    () =>
+      [...(statements.data?.items ?? [])].sort((left, right) =>
+        left.dueOn.localeCompare(right.dueOn),
+      ),
+    [statements.data?.items],
+  )
+  const today = new Date().toISOString().slice(0, 10)
+  const currentStatement =
+    orderedStatements.find(
+      (statement) => statement.status === 'OPEN' && statement.dueOn >= today,
+    ) ?? orderedStatements.find((statement) => statement.status !== 'PAID')
+  const filteredStatements = useMemo(
+    () => orderedStatements.filter((statement) => status === 'ALL' || statement.status === status),
+    [orderedStatements, status],
+  )
+  const selectedTimelineStatement =
+    filteredStatements.find(({ id }) => id === statementId) ??
+    filteredStatements.at(0) ??
+    currentStatement ??
+    orderedStatements.at(-1)
+  const activeStatementId =
+    view === 'current' ? (currentStatement?.id ?? '') : (selectedTimelineStatement?.id ?? '')
+  const detail = useQuery(statementQuery(activeStatementId))
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [closingStatement, setClosingStatement] = useState<Statement | null>(null)
+  const [editingPurchase, setEditingPurchase] = useState<StatementPurchase | null>(null)
+  const [deletingPurchase, setDeletingPurchase] = useState<StatementPurchase | null>(null)
+  const closeMutation = usePlanningMutation(planningApi.closeStatement)
+  const deletePurchase = useDeleteCardPurchase()
+  const selectedStatement = orderedStatements.find(({ id }) => id === activeStatementId)
+  const purchases = useMemo(() => {
+    const normalizedSearch = search.trim().toLocaleLowerCase('pt-BR')
+    if (!normalizedSearch) return detail.data?.purchases.items ?? []
+    return (detail.data?.purchases.items ?? []).filter((purchase) =>
+      purchase.description.toLocaleLowerCase('pt-BR').includes(normalizedSearch),
+    )
+  }, [detail.data?.purchases.items, search])
+
+  const statementColumns = useMemo<ColumnDef<Statement>[]>(
+    () => [
+      {
+        accessorKey: 'cycleStartOn',
+        header: 'Ciclo',
+        size: 220,
+        cell: ({ row }) =>
+          `${formatDatePtBr(row.original.cycleStartOn)} a ${formatDatePtBr(row.original.cycleEndOn)}`,
+      },
+      {
+        accessorKey: 'dueOn',
+        header: 'Vencimento',
+        size: 140,
+        cell: ({ row }) => formatDatePtBr(row.original.dueOn),
+      },
+      {
+        accessorKey: 'status',
+        header: 'Situação',
+        size: 160,
+        cell: ({ row }) => getDomainLabel(row.original.status),
+      },
+      {
+        accessorKey: 'totalCents',
+        header: 'Total',
+        size: 160,
+        cell: ({ row }) => formatMoney(row.original.totalCents, card?.currency ?? 'BRL'),
+      },
+    ],
+    [card?.currency],
+  )
+  const purchaseColumns = useMemo<ColumnDef<StatementPurchase>[]>(
+    () => [
+      { accessorKey: 'description', header: 'Descrição', size: 360 },
+      {
+        accessorKey: 'occurredOn',
+        header: 'Data',
+        size: 140,
+        cell: ({ row }) => formatDatePtBr(row.original.occurredOn),
+      },
+      {
+        accessorKey: 'amountCents',
+        header: 'Valor',
+        size: 180,
+        cell: ({ row }) => formatMoney(row.original.amountCents, row.original.currency),
+      },
+      {
+        id: 'actions',
+        header: 'Ações',
+        size: 120,
+        cell: ({ row }) =>
+          row.original.editable ? (
+            <div className="flex justify-end gap-1">
+              <TooltipButton
+                title="Editar compra"
+                variant="ghost"
+                size="icon"
+                disabled={readOnly}
+                onClick={() => setEditingPurchase(row.original)}
+              >
+                <Pencil className="size-4" />
+              </TooltipButton>
+              <TooltipButton
+                title="Excluir compra"
+                variant="ghost"
+                size="icon"
+                disabled={readOnly}
+                onClick={() => setDeletingPurchase(row.original)}
+              >
+                <Trash2 className="text-destructive size-4" />
+              </TooltipButton>
+            </div>
+          ) : null,
+      },
+    ],
+    [readOnly, setDeletingPurchase, setEditingPurchase],
+  )
+
+  if (cards.isError || statements.isError)
+    return (
+      <ResourceErrorState
+        title="Não foi possível carregar o cartão"
+        error={cards.error ?? statements.error}
+        fallbackMessage="Tente carregar os detalhes novamente."
+        isRetrying={cards.isFetching || statements.isFetching}
+        onRetry={() => {
+          void cards.refetch()
+          void statements.refetch()
+        }}
+      />
+    )
+
+  if (!cards.isLoading && !card)
+    return (
+      <div className="space-y-4">
+        <h1 className="font-heading text-2xl font-semibold">Cartão não encontrado</h1>
+        <Link to="/cards" className={buttonVariants({ variant: 'outline' })}>
+          <ArrowLeft /> Voltar para cartões
+        </Link>
+      </div>
+    )
+
+  return (
+    <div className="flex min-w-0 flex-col gap-6">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
+        <div className="space-y-2">
+          <Link
+            to="/cards"
+            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-3')}
+          >
+            <ArrowLeft /> Cartões
+          </Link>
+          <div>
+            <h1 className="font-heading text-2xl font-semibold">{card?.name ?? 'Cartão'}</h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Faturas, compras, fechamento e pagamentos em um único lugar.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumo do cartão">
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm">Limite</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xl font-semibold">
+            {card ? formatMoney(card.limitCents, card.currency) : '—'}
+          </CardContent>
+        </Card>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm">Fatura selecionada</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xl font-semibold">
+            {selectedStatement
+              ? formatMoney(selectedStatement.totalCents, card?.currency ?? 'BRL')
+              : '—'}
+          </CardContent>
+        </Card>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm">Pago</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xl font-semibold">
+            {selectedStatement
+              ? formatMoney(selectedStatement.paidCents, card?.currency ?? 'BRL')
+              : '—'}
+          </CardContent>
+        </Card>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm">Vencimento</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xl font-semibold">
+            {formatDatePtBr(selectedStatement?.dueOn)}
+          </CardContent>
+        </Card>
+      </section>
+
+      <Tabs
+        value={view}
+        onValueChange={(value) => onFiltersChange({ view: value as CardStatementView })}
+        className="min-w-0 gap-5"
+      >
+        <TabsList className="grid min-h-14 w-full grid-cols-2 p-1.5">
+          <TabsTrigger value="current" className="min-h-11">
+            Fatura atual
+          </TabsTrigger>
+          <TabsTrigger value="statements" className="min-h-11">
+            Próximas e histórico
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="current">
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 py-5">
+              <div>
+                <p className="font-medium">
+                  {currentStatement
+                    ? `Vencimento em ${formatDatePtBr(currentStatement.dueOn)}`
+                    : 'Nenhuma fatura atual'}
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {currentStatement
+                    ? `${formatDatePtBr(currentStatement.cycleStartOn)} a ${formatDatePtBr(currentStatement.cycleEndOn)}`
+                    : 'Uma fatura será criada automaticamente ao lançar uma compra.'}
+                </p>
+              </div>
+              {currentStatement && (
+                <strong className="text-xl">
+                  {formatMoney(currentStatement.totalCents, card?.currency ?? 'BRL')}
+                </strong>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="statements" className="min-w-0 space-y-4">
+          <StatementTimeline
+            statements={orderedStatements}
+            selectedId={selectedTimelineStatement?.id}
+            currency={card?.currency ?? 'BRL'}
+            onSelect={(id) => onFiltersChange({ statementId: id })}
+          />
+          <Card className="min-w-0 overflow-hidden">
+            <CardContent className="space-y-4 p-4">
+              <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                <SearchableSelect
+                  value={status}
+                  onValueChange={(value) =>
+                    onFiltersChange({
+                      status: value as StatementStatusFilter,
+                      statementId: undefined,
+                    })
+                  }
+                  className="w-full min-w-0"
+                  options={[
+                    { value: 'ALL', label: 'Todas as situações' },
+                    { value: 'OPEN', label: 'Abertas' },
+                    { value: 'CLOSED', label: 'Fechadas' },
+                    { value: 'PARTIALLY_PAID', label: 'Parcialmente pagas' },
+                    { value: 'PAID', label: 'Pagas' },
+                  ]}
+                />
+                <SearchableSelect
+                  value={selectedTimelineStatement?.id ?? ''}
+                  onValueChange={(value) => onFiltersChange({ statementId: value })}
+                  className="w-full min-w-0"
+                  placeholder="Selecione uma fatura"
+                  options={filteredStatements.map((statement) => ({
+                    value: statement.id,
+                    label: `Vence ${formatDatePtBr(statement.dueOn)}`,
+                    badge: getDomainLabel(statement.status),
+                  }))}
+                />
+              </div>
+              <div className="h-[320px] min-w-0 rounded-xl border">
+                <Table
+                  columns={statementColumns}
+                  data={filteredStatements}
+                  getRowId={(item) => item.id}
+                  enableRowSelection={false}
+                  shouldRenderCheckbox={false}
+                  onRowClick={({ row }) => onFiltersChange({ statementId: row.original.id })}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Compras da fatura</h2>
+            <p className="text-muted-foreground text-xs">
+              {selectedStatement
+                ? `${formatDatePtBr(selectedStatement.cycleStartOn)} a ${formatDatePtBr(selectedStatement.cycleEndOn)} · ${getDomainLabel(selectedStatement.status)}`
+                : 'Selecione uma fatura para consultar as compras.'}
+            </p>
+          </div>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+            <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
+              <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <Input
+                value={search}
+                onChange={(event) => onFiltersChange({ search: event.target.value })}
+                className="w-full min-w-0 pl-9"
+                placeholder="Buscar compra..."
+              />
+            </div>
+            {selectedStatement?.status === 'OPEN' && (
+              <TooltipButton
+                title="Fechar fatura"
+                variant="outline"
+                size="icon"
+                disabled={readOnly}
+                onClick={() => setClosingStatement(selectedStatement)}
+              >
+                <ReceiptText />
+              </TooltipButton>
+            )}
+            {(selectedStatement?.status === 'CLOSED' ||
+              selectedStatement?.status === 'PARTIALLY_PAID') && (
+              <TooltipButton
+                title="Registrar pagamento"
+                variant="outline"
+                size="icon"
+                disabled={readOnly}
+                onClick={() => setPaymentOpen(true)}
+              >
+                <HandCoins />
+              </TooltipButton>
+            )}
+          </div>
+        </div>
+        <div className="h-[420px] rounded-xl border">
+          <Table
+            columns={purchaseColumns}
+            data={purchases}
+            getRowId={(item) => item.id}
+            enableRowSelection={false}
+            shouldRenderCheckbox={false}
+          />
+        </div>
+      </section>
+
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Pagamento da fatura</DialogTitle>
+            <DialogDescription>
+              O pagamento será vinculado à fatura e à conta selecionada.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedStatement && card && (
+            <StatementPaymentForm
+              key={`${selectedStatement.id}-${selectedStatement.version}`}
+              statement={selectedStatement}
+              currency={card.currency}
+              onCancel={() => setPaymentOpen(false)}
+              onSuccess={() => setPaymentOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(editingPurchase)}
+        onOpenChange={(open) => !open && setEditingPurchase(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar compra</DialogTitle>
+            <DialogDescription>
+              Alterar a data pode mover a compra para outra fatura aberta.
+            </DialogDescription>
+          </DialogHeader>
+          {editingPurchase && card && (
+            <CardPurchaseForm
+              key={`${editingPurchase.id}-${editingPurchase.version}`}
+              card={card}
+              purchase={editingPurchase}
+              readOnly={readOnly}
+              onCancel={() => setEditingPurchase(null)}
+              onSuccess={() => setEditingPurchase(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      {deletingPurchase && card && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setDeletingPurchase(null)}
+          title="Excluir esta compra?"
+          description="O valor será retirado da fatura e o saldo projetado será recalculado."
+          confirmText="Excluir compra"
+          type="danger"
+          isPending={deletePurchase.isPending}
+          onConfirm={async () => {
+            await deletePurchase.mutateAsync({ cardId: card.id, purchase: deletingPurchase })
+            setDeletingPurchase(null)
+          }}
+        />
+      )}
+      {closingStatement && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setClosingStatement(null)}
+          title="Fechar esta fatura?"
+          description="Depois do fechamento, novas compras serão direcionadas ao próximo ciclo."
+          confirmText="Fechar fatura"
+          type="warning"
+          isPending={closeMutation.isPending}
+          onConfirm={async () => {
+            await closeMutation.mutateAsync(closingStatement)
+            setClosingStatement(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}

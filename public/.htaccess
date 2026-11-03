@@ -1,0 +1,77 @@
+# ==============================================================================
+# Apache Configuration (.htaccess) - SPA & Cache Strategy
+# ==============================================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Permite que arquivos e diretórios existentes sejam servidos diretamente
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 2. Se a requisição for para a pasta /assets/ ou arquivos com extensões de assets
+  #    e o arquivo NÃO existir, retorna 404 real imediatamente (evita servir index.html
+  #    com Content-Type "text/html" para módulos JS/CSS que mudaram de hash no deploy).
+  RewriteCond %{REQUEST_URI} ^/assets/ [OR]
+  RewriteCond %{REQUEST_URI} \.(js|mjs|wasm|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map|json)$ [NC]
+  RewriteRule ^ - [R=404,L]
+
+  # 3. Redireciona todas as demais rotas da SPA (ex: /app, /dashboard, etc.) para o index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# ==============================================================================
+# Políticas de Cache Críticas para evitar duplo reload e versões defasadas
+# ==============================================================================
+
+# index.html e Service Worker NUNCA devem ser cacheados
+<FilesMatch "^(index\.html|sw\.js|registerSW\.js)$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </IfModule>
+</FilesMatch>
+
+# Assets com hash gerado pelo Vite (cache imutável de 1 ano)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|mjs|wasm|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(webmanifest|xml)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+  Header set X-Content-Type-Options "nosniff"
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType application/wasm "access plus 1 year"
+  ExpiresByType application/manifest+json "access plus 1 week"
+  ExpiresByType application/xml "access plus 1 week"
+</IfModule>
+
+# ==============================================================================
+# MIME Types e Segurança
+# ==============================================================================
+
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType application/wasm .wasm
+  AddType text/css .css
+  AddType application/manifest+json .webmanifest
+  AddType image/svg+xml .svg
+</IfModule>
+
+Options -Indexes
+<FilesMatch "\.(php|phtml|php\d)$">
+  Require all denied
+</FilesMatch>
