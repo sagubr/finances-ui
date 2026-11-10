@@ -13,7 +13,7 @@ import {
   subscribeToPwaInstallPrompt,
   type PwaInstallPromptEvent,
 } from '@/lib/pwa'
-import { Check, Download, Share, Smartphone } from 'lucide-react'
+import { Check, Download, Smartphone } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -37,12 +37,6 @@ const isStandalone = () => {
   )
 }
 
-const isIosDevice = () => {
-  const classicIos = /iPad|iPhone|iPod/i.test(navigator.userAgent)
-  const ipadDesktopMode = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
-  return classicIos || ipadDesktopMode
-}
-
 const wasRecentlyDismissed = () => {
   const storage = safeLocalStorage()
   if (!storage) return false
@@ -61,15 +55,14 @@ const rememberDismissal = () => {
 export function PwaInstallPrompt() {
   const [prompt, setPrompt] = useState<PwaInstallPromptEvent | null>(() => getPwaInstallPrompt())
   const [open, setOpen] = useState(false)
-  const ios = isIosDevice()
 
   useEffect(() => subscribeToPwaInstallPrompt(setPrompt), [])
 
   useEffect(() => {
-    if (isStandalone() || wasRecentlyDismissed() || (!prompt && !ios)) return
+    if (isStandalone() || wasRecentlyDismissed() || !prompt) return
     const timeout = window.setTimeout(() => setOpen(true), OPEN_DELAY_MS)
     return () => window.clearTimeout(timeout)
-  }, [ios, prompt])
+  }, [prompt])
 
   useEffect(() => {
     const installed = () => {
@@ -98,7 +91,7 @@ export function PwaInstallPrompt() {
       if (choice.outcome === 'dismissed') rememberDismissal()
     } catch {
       toast.error('Não foi possível abrir a instalação.', {
-        description: 'Use o menu do navegador e escolha “Instalar aplicativo”.',
+        description: 'Tente novamente em alguns instantes.',
       })
     }
   }
@@ -122,65 +115,29 @@ export function PwaInstallPrompt() {
           </DialogDescription>
         </DialogHeader>
 
-        {ios ? (
-          <ol className="bg-muted/45 space-y-3 rounded-xl border p-4 text-sm">
-            <li className="flex items-start gap-3">
-              <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-lg border font-semibold">
-                1
-              </span>
-              <span className="pt-1.5">
-                Toque em <strong>Compartilhar</strong> <Share className="inline size-4" /> no
-                navegador.
-              </span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-lg border font-semibold">
-                2
-              </span>
-              <span className="pt-1.5">
-                Escolha <strong>Adicionar à Tela de Início</strong>.
-              </span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-lg border font-semibold">
-                3
-              </span>
-              <span className="pt-1.5">
-                Confirme em <strong>Adicionar</strong>.
-              </span>
-            </li>
-          </ol>
-        ) : (
-          <ul className="grid gap-3 text-sm">
-            <li className="flex items-center gap-3">
-              <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-                <Smartphone className="size-4" />
-              </span>
-              Acesso rápido pela tela inicial
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-                <Check className="size-4" />
-              </span>
-              Experiência em tela cheia, sem procurar no navegador
-            </li>
-          </ul>
-        )}
+        <ul className="grid gap-3 text-sm">
+          <li className="flex items-center gap-3">
+            <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
+              <Smartphone className="size-4" />
+            </span>
+            Acesso rápido pela tela inicial
+          </li>
+          <li className="flex items-center gap-3">
+            <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
+              <Check className="size-4" />
+            </span>
+            Experiência em tela cheia, sem procurar no navegador
+          </li>
+        </ul>
 
         <DialogFooter className="sm:justify-between">
           <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={dismiss}>
             Agora não
           </Button>
-          {ios ? (
-            <Button type="button" className="w-full sm:w-auto" onClick={dismiss}>
-              Entendi
-            </Button>
-          ) : (
-            <Button type="button" className="w-full sm:w-auto" onClick={() => void install()}>
-              <Download className="size-4" />
-              Instalar aplicativo
-            </Button>
-          )}
+          <Button type="button" className="w-full sm:w-auto" onClick={() => void install()}>
+            <Download className="size-4" />
+            Instalar aplicativo
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
