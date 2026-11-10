@@ -59,12 +59,12 @@ export const NAVIGATION_MODULES = [
   }),
   module({
     id: 'financial-structure',
-    title: 'Estrutura financeira',
+    title: 'Contas',
     url: '/accounts',
     icon: Landmark,
     group: 'finance',
     sidebar: { visible: true, order: 45 },
-    mobile: { placement: 'more', order: 5 },
+    mobile: { placement: 'primary', order: 30 },
     items: [
       { id: 'financial-accounts', title: 'Contas', url: '/accounts', icon: Landmark },
       { id: 'financial-categories', title: 'Categorias', url: '/categories', icon: Tags },

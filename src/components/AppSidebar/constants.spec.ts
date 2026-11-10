@@ -9,26 +9,25 @@ import {
 
 describe('navigation module catalog', () => {
   it('keeps at most four stable primary destinations in the mobile navigation', () => {
-    expect(BOTTOM_PRIMARY_ITEMS.map(({ id }) => id)).toEqual(['dashboard', 'transactions'])
-    expect(BOTTOM_PRIMARY_ITEMS).toHaveLength(2)
+    expect(BOTTOM_PRIMARY_ITEMS.map(({ id }) => id)).toEqual([
+      'dashboard',
+      'transactions',
+      'financial-structure',
+    ])
+    expect(BOTTOM_PRIMARY_ITEMS).toHaveLength(3)
   })
 
   it('derives sidebar groups and mobile overflow from the same modules', () => {
     expect(NAV_GROUPS.map(({ id }) => id)).toEqual(['overview', 'finance', 'insights'])
-    expect(BOTTOM_MORE_ITEMS.map(({ id }) => id)).toEqual([
-      'financial-structure',
-      'reports',
-      'settings',
-    ])
+    expect(BOTTOM_MORE_ITEMS.map(({ id }) => id)).toEqual(['reports', 'settings'])
   })
 
   it('exposes every nested destination in the mobile overflow menu', () => {
     expect(BOTTOM_MORE_LINKS.map(({ id }) => id)).toEqual([
-      'financial-accounts',
-      'financial-categories',
       'reports',
       'settings',
       'transaction-planning',
+      'financial-categories',
     ])
   })
 

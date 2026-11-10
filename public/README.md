@@ -17,7 +17,7 @@
 - `mstile-150(.png|-dark.png)`, `browserconfig.xml`
 - `safari-pinned-tab.svg` - monocromatico
 - `logo-light.svg` (fundos claros) / `logo-dark.svg` (fundos escuros)
-- `site.webmanifest`, `.htaccess`
+- `site.webmanifest` é gerado pelo `vite-plugin-pwa`; `.htaccess` permanece em `public/`
 
 ## `<head>`
 ```html
@@ -25,7 +25,7 @@
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#1E7B50">
-<link rel="manifest" href="/site.webmanifest">
+<!-- O vite-plugin-pwa injeta o link para /site.webmanifest no build. -->
 <meta name="theme-color" content="#1E7B50" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#08170F" media="(prefers-color-scheme: dark)">
 <meta name="msapplication-config" content="/browserconfig.xml">

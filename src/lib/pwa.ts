@@ -6,6 +6,32 @@ const UPDATE_INTERVAL_MS = 15 * 60 * 1000
 
 const state = { initialized: false }
 
+export type PwaInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
+type InstallPromptListener = (prompt: PwaInstallPromptEvent | null) => void
+
+let installPrompt: PwaInstallPromptEvent | null = null
+const installPromptListeners = new Set<InstallPromptListener>()
+
+const publishInstallPrompt = (prompt: PwaInstallPromptEvent | null) => {
+  installPrompt = prompt
+  for (const listener of installPromptListeners) listener(prompt)
+}
+
+export const getPwaInstallPrompt = () => installPrompt
+
+export const subscribeToPwaInstallPrompt = (listener: InstallPromptListener) => {
+  installPromptListeners.add(listener)
+  return () => {
+    installPromptListeners.delete(listener)
+  }
+}
+
+export const clearPwaInstallPrompt = () => publishInstallPrompt(null)
+
 /**
  * Safe wrapper around `sessionStorage`.
  * In private browsing or with storage policies disabled, access may throw.
@@ -44,6 +70,11 @@ export const initializePwa = (): void => {
 
   // Auto-reload once if dynamic import of a lazy chunk fails after a new deployment.
   window.addEventListener('vite:preloadError', handlePreloadError)
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault()
+    publishInstallPrompt(event as PwaInstallPromptEvent)
+  })
+  window.addEventListener('appinstalled', () => publishInstallPrompt(null))
 
   // With registerType: 'autoUpdate' + skipWaiting + clientsClaim in the Workbox config,
   // the new SW activates immediately. We only need to wire up periodic update checks.

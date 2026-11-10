@@ -75,6 +75,7 @@ export default defineConfig(({ mode }) => ({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      manifestFilename: 'site.webmanifest',
       includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
       workbox: {
         cleanupOutdatedCaches: true,
@@ -87,14 +88,37 @@ export default defineConfig(({ mode }) => ({
       },
       manifest: {
         id: '/',
-        name: 'Finances',
-        short_name: 'Finances',
-        description: 'Organização e planejamento financeiro pessoal',
-        theme_color: '#F4F4F5',
-        background_color: '#F4F4F5',
+        name: 'Nummo',
+        short_name: 'Nummo',
+        description: 'Suas finanças, com tranquilidade.',
+        lang: 'pt-BR',
+        theme_color: '#1E7B50',
+        background_color: '#F4FBF7',
         display: 'standalone',
+        orientation: 'any',
+        categories: ['finance', 'productivity'],
         scope: '/',
-        start_url: '/',
+        start_url: '/home?source=pwa',
+        shortcuts: [
+          {
+            name: 'Início',
+            short_name: 'Início',
+            url: '/home?source=pwa-shortcut',
+            icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Transações',
+            short_name: 'Transações',
+            url: '/transactions?source=pwa-shortcut',
+            icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Relatórios',
+            short_name: 'Relatórios',
+            url: '/reports?source=pwa-shortcut',
+            icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
         icons: [
           {
             src: '/icon-192.png',

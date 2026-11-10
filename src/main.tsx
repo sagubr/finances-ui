@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { initializeErrorCatalog } from './api/error-catalog.api'
 import GlobalErrorBoundary from './components/GlobalErrorBoundary'
+import { PwaInstallPrompt } from './components/PwaInstallPrompt'
 import { Toaster } from './components/ui/sonner'
 import AuthProvider, { useAuth, type Auth } from './contexts/AuthProvider'
 import { ThemeProvider } from './contexts/ThemeProvider'
@@ -44,6 +45,7 @@ if (rootElement && !rootElement.innerHTML) {
           <ThemeProvider defaultTheme="system" storageKey="finances-theme">
             <AuthProvider>
               <InnerApp />
+              <PwaInstallPrompt />
               <Toaster richColors />
             </AuthProvider>
           </ThemeProvider>

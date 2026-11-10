@@ -1,6 +1,7 @@
+import { useAuth } from '@/contexts/AuthProvider'
 import { cn } from '@/lib/utils'
 import { Link, useLocation } from '@tanstack/react-router'
-import { Ellipsis, X } from 'lucide-react'
+import { Ellipsis, LogOut, X } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { BOTTOM_MORE_LINKS, BOTTOM_PRIMARY_ITEMS, type NavItem } from '../AppSidebar/constants'
 
@@ -13,6 +14,7 @@ const itemIsActive = (pathname: string, item: NavItem): boolean =>
 
 export const BottomNavigation = () => {
   const { pathname } = useLocation()
+  const { logout } = useAuth()
   const menuId = useId()
   const [moreOpen, setMoreOpen] = useState(false)
   const additionalRouteActive = BOTTOM_MORE_LINKS.some((item) => itemIsActive(pathname, item))
@@ -85,9 +87,24 @@ export const BottomNavigation = () => {
               </Link>
             )
           })}
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={moreOpen ? 0 : -1}
+            onClick={() => {
+              setMoreOpen(false)
+              void logout()
+            }}
+            className="border-destructive/20 bg-background/95 text-destructive hover:bg-destructive/10 focus-visible:ring-destructive/30 flex min-h-12 items-center gap-3 rounded-full border py-2.5 pr-4 pl-3 text-sm font-semibold whitespace-nowrap shadow-lg backdrop-blur-xl transition-[transform,background-color] hover:-translate-y-0.5 focus-visible:ring-3 focus-visible:outline-none"
+          >
+            <span className="bg-destructive/10 flex size-8 items-center justify-center rounded-full">
+              <LogOut className="size-5" />
+            </span>
+            Sair
+          </button>
         </div>
 
-        <ul className="border-border bg-background/92 grid grid-cols-3 gap-1 rounded-[1.5rem] border p-1.5 shadow-[0_20px_55px_-18px_rgb(0_0_0/0.5)] backdrop-blur-xl">
+        <ul className="border-border bg-background/92 grid grid-cols-4 gap-1 rounded-[1.5rem] border p-1.5 shadow-[0_20px_55px_-18px_rgb(0_0_0/0.5)] backdrop-blur-xl">
           {BOTTOM_PRIMARY_ITEMS.map((item) => {
             if (!item.url) return null
             const active = itemIsActive(pathname, item)
@@ -100,11 +117,11 @@ export const BottomNavigation = () => {
                   aria-current={active ? 'page' : undefined}
                   onClick={() => setMoreOpen(false)}
                   className={cn(
-                    'text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 flex min-h-[4.25rem] w-full min-w-0 flex-col items-center justify-center gap-1 rounded-[1.15rem] px-2 text-sm font-semibold transition-colors outline-none focus-visible:ring-3',
+                    'text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 flex min-h-16 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-[1.15rem] px-1 text-xs font-semibold transition-colors outline-none focus-visible:ring-3',
                     active && 'bg-primary/12 text-primary',
                   )}
                 >
-                  {Icon && <Icon className="size-6 shrink-0" />}
+                  {Icon && <Icon className="size-5 shrink-0" />}
                   <span className="max-w-full truncate">{item.title}</span>
                 </Link>
               </li>
@@ -121,11 +138,11 @@ export const BottomNavigation = () => {
               aria-expanded={moreOpen}
               onClick={() => setMoreOpen((open) => !open)}
               className={cn(
-                'text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 flex min-h-[4.25rem] w-full min-w-0 flex-col items-center justify-center gap-1 rounded-[1.15rem] px-2 text-sm font-semibold transition-colors outline-none focus-visible:ring-3',
+                'text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 flex min-h-16 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-[1.15rem] px-1 text-xs font-semibold transition-colors outline-none focus-visible:ring-3',
                 (additionalRouteActive || moreOpen) && 'bg-primary/12 text-primary',
               )}
             >
-              {moreOpen ? <X className="size-6" /> : <Ellipsis className="size-6" />}
+              {moreOpen ? <X className="size-5" /> : <Ellipsis className="size-5" />}
               <span>Mais</span>
             </button>
           </li>
