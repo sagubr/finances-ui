@@ -121,6 +121,7 @@ export const ConfirmDialog = React.memo<ConfirmDialogProps>(
               type="button"
               variant="outline"
               size="sm"
+              className="w-full sm:w-auto"
               onClick={handleCancel}
               disabled={isPending}
             >
@@ -130,6 +131,7 @@ export const ConfirmDialog = React.memo<ConfirmDialogProps>(
               type="button"
               variant={variant}
               size="sm"
+              className="w-full sm:w-auto"
               onClick={() => void handleConfirm()}
               disabled={isPending}
             >

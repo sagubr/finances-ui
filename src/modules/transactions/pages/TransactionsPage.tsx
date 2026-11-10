@@ -34,9 +34,9 @@ import {
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
-import { Plus } from 'lucide-react'
+import { Info, Landmark, Plus, Tags } from 'lucide-react'
 import { useState } from 'react'
 import { TransactionForm } from '../components/TransactionForm'
 import { TransactionList } from '../components/TransactionList'
@@ -86,6 +86,10 @@ export const TransactionsPage = ({
   const accountItems = accounts.data?.items ?? []
   const hasActiveAccount = accountItems.some(({ active }) => active)
   const categoryItems = categories.data?.items ?? []
+  const hasActiveCategory = categoryItems.some(({ active }) => active)
+  const prerequisitesLoaded =
+    !accounts.isPending && !categories.isPending && !accounts.isError && !categories.isError
+  const canCreateTransaction = hasActiveAccount && hasActiveCategory
   const transactionItems = deduplicateTransferLegs(
     transactions.data?.pages
       .flatMap(({ items }) => items)
@@ -140,10 +144,60 @@ export const TransactionsPage = ({
               isRetrying={accounts.isFetching || categories.isFetching}
             />
           )}
+          {prerequisitesLoaded && !canCreateTransaction && (
+            <section
+              role="status"
+              className="border-primary/20 bg-primary/5 flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-start"
+              aria-labelledby="transaction-prerequisites-title"
+            >
+              <div className="bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
+                <Info className="size-4" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 id="transaction-prerequisites-title" className="font-medium">
+                  Prepare seu primeiro lançamento
+                </h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {!hasActiveAccount && !hasActiveCategory
+                    ? 'Antes de cadastrar uma transação, crie uma conta e uma categoria para organizar o lançamento.'
+                    : !hasActiveAccount
+                      ? 'Cadastre uma conta ativa para definir onde a movimentação será registrada.'
+                      : 'Cadastre uma categoria ativa para organizar a nova transação.'}
+                </p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {!hasActiveAccount && (
+                    <Button
+                      render={<Link to="/accounts" />}
+                      nativeButton={false}
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      disabled={readOnly}
+                    >
+                      <Landmark className="size-4" />
+                      Cadastrar conta
+                    </Button>
+                  )}
+                  {!hasActiveCategory && (
+                    <Button
+                      render={<Link to="/categories" />}
+                      nativeButton={false}
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      disabled={readOnly}
+                    >
+                      <Tags className="size-4" />
+                      Cadastrar categoria
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
           <section aria-label="Resumo da competência">
             {summary.isPending || !currency ? (
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Carregando resumo">
-                {Array.from({ length: 4 }, (_, index) => (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Carregando resumo">
+                {Array.from({ length: 3 }, (_, index) => (
                   <Skeleton key={index} className="h-[65px] rounded-lg" />
                 ))}
               </div>
@@ -157,7 +211,7 @@ export const TransactionsPage = ({
                 isRetrying={summary.isFetching}
               />
             ) : (
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <ResourceMetricCard
                   label="Receitas"
                   value={formatMoney(summary.data.incomeCents, currency)}
@@ -173,42 +227,31 @@ export const TransactionsPage = ({
                   value={formatMoney(summary.data.netCents, currency)}
                   tone={summary.data.netCents >= 0 ? 'positive' : 'negative'}
                 />
-                <ResourceMetricCard
-                  label="Faturas previstas"
-                  value={formatMoney(summary.data.plannedCardPaymentCents, currency)}
-                />
               </div>
             )}
           </section>
-          <section className="space-y-4" aria-labelledby="transaction-records-title">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 id="transaction-records-title" className="font-heading text-lg font-semibold">
-                  Registros
-                </h2>
-              </div>
+          <section className="space-y-4" aria-label="Transações">
+            <p className="text-muted-foreground text-xs">
+              {viewMode === 'map'
+                ? `${spendingMap.data?.summary.locatedCount ?? 0} gastos localizados`
+                : `${transactionItems.length} ${transactionItems.length === 1 ? 'transação' : 'transações'}`}
+            </p>
+            <div className="flex items-center justify-between gap-3">
               {viewMode !== 'map' && (
                 <DebouncedSearchField
                   value={search}
                   onValueChange={setSearch}
                   placeholder="Buscar por descrição da transação"
-                  containerClassName="min-w-0 flex-1 sm:w-72 sm:flex-none"
+                  containerClassName="w-full min-w-0 sm:max-w-72"
                 />
               )}
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-muted-foreground text-xs">
-                {viewMode === 'map'
-                  ? `${spendingMap.data?.summary.locatedCount ?? 0} gastos localizados`
-                  : `${transactionItems.length} transações carregadas`}
-              </p>
               <ManagementBarContainer className="shadow-sm">
                 <ViewModeToggle value={viewMode} onValueChange={setViewMode} allowMap />
                 <TooltipButton
                   title="Nova transação"
                   size="icon"
                   className="size-8 shrink-0"
-                  disabled={readOnly || !hasActiveAccount}
+                  disabled={readOnly || !canCreateTransaction}
                   onClick={() => setCreateOpen(true)}
                 >
                   <Plus className="size-4" />
@@ -236,7 +279,7 @@ export const TransactionsPage = ({
                 onRetry={() => void transactions.refetch()}
                 isRetrying={transactions.isFetching}
                 onCreate={() => setCreateOpen(true)}
-                canCreate={hasActiveAccount}
+                canCreate={canCreateTransaction}
                 viewMode={viewMode}
                 onEdit={setEditingTransaction}
                 onEditCardPurchase={setEditingCardPurchase}

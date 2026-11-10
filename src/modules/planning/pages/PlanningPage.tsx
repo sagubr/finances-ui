@@ -589,16 +589,13 @@ export const PlanningPage = ({
       {section === 'recurring' && (
         <section className="space-y-4">
           {recurring.isPending ? (
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Carregando resumo">
-              {Array.from({ length: 4 }, (_, index) => (
+            <div className="grid grid-cols-2 gap-2" aria-label="Carregando resumo">
+              {Array.from({ length: 2 }, (_, index) => (
                 <div key={index} className="bg-muted h-[65px] animate-pulse rounded-lg" />
               ))}
             </div>
           ) : recurring.data ? (
-            <div
-              className="grid grid-cols-2 gap-2 md:grid-cols-4"
-              aria-label="Resumo das recorrências"
-            >
+            <div className="grid grid-cols-2 gap-2" aria-label="Resumo das recorrências">
               <ResourceMetricCard
                 label="Receitas planejadas"
                 value={recurringTotal(recurring.data.items, 'INCOME')}
@@ -608,14 +605,6 @@ export const PlanningPage = ({
                 label="Despesas planejadas"
                 value={recurringTotal(recurring.data.items, 'EXPENSE')}
                 tone="negative"
-              />
-              <ResourceMetricCard
-                label="Ativas"
-                value={recurring.data.items.filter((rule) => !rule.pausedAt).length}
-              />
-              <ResourceMetricCard
-                label="Pausadas"
-                value={recurring.data.items.filter((rule) => Boolean(rule.pausedAt)).length}
               />
             </div>
           ) : null}

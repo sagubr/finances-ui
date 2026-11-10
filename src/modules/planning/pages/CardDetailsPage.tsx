@@ -324,6 +324,7 @@ export const CardDetailsPage = ({
               <ResourceViewToolbar
                 count={filteredStatements.length}
                 label="faturas"
+                singularLabel="fatura"
                 viewMode={statementView}
                 onViewModeChange={setStatementView}
               />
@@ -435,7 +436,7 @@ export const CardDetailsPage = ({
           </Card>
         </TabsContent>
         <section className="space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
             <div>
               <h2 className="font-heading text-lg font-semibold">Compras da fatura</h2>
               <p className="text-muted-foreground text-xs">
@@ -444,20 +445,21 @@ export const CardDetailsPage = ({
                   : 'Selecione uma fatura para consultar as compras.'}
               </p>
             </div>
-            <div className="w-full min-w-0 sm:w-auto">
-              <DebouncedSearchField
-                value={search}
-                onValueChange={(value) => onFiltersChange({ search: value })}
-                placeholder="Buscar por descrição da compra"
-                containerClassName="min-w-0 flex-1 sm:w-72 sm:flex-none"
-              />
-            </div>
           </div>
           <ResourceViewToolbar
             count={purchases.length}
             label="compras"
+            singularLabel="compra"
             viewMode={purchaseView}
             onViewModeChange={setPurchaseView}
+            leading={
+              <DebouncedSearchField
+                value={search}
+                onValueChange={(value) => onFiltersChange({ search: value })}
+                placeholder="Buscar por descrição da compra"
+                containerClassName="w-full min-w-0 sm:max-w-72"
+              />
+            }
             actions={
               <>
                 {selectedStatement?.status === 'OPEN' && (
