@@ -202,7 +202,7 @@ function DialogContent({
         <div
           data-slot="dialog-content"
           className={cn(
-            'relative mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
+            'relative mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-4',
             typeof className === 'string' ? className : undefined,
           )}
           {...(props as React.ComponentProps<'div'>)}
