@@ -86,6 +86,7 @@ export type StatementPurchase = {
   amountCents: number
   currency: string
   occurredOn: string
+  location: TransactionLocation | null
   editable: boolean
   version: number
 }
@@ -101,6 +102,7 @@ export type CardPurchaseInput = {
   amountCents: number
   description: string
   occurredOn: string
+  location?: TransactionLocation | null
 }
 
 export type CardPurchase = CardPurchaseInput & {
@@ -110,12 +112,20 @@ export type CardPurchase = CardPurchaseInput & {
   currency: string
   competenceMonth: string
   status: 'CONFIRMED'
+  location: TransactionLocation | null
   version: number
 }
 
 export type StatementClose = {
   id: string
   status: 'CLOSED'
+  totalCents: number
+  version: number
+}
+
+export type StatementReopen = {
+  id: string
+  status: 'OPEN'
   totalCents: number
   version: number
 }
@@ -186,3 +196,4 @@ export type ImportRow = {
   normalized: Record<string, string | number | undefined> | null
   errors: string[]
 }
+import type { TransactionLocation } from '@/modules/transactions/models/transaction.types'

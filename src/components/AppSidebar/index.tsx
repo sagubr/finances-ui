@@ -1,12 +1,13 @@
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar'
+import { cn } from '@/lib/utils'
 import { NAV_GROUPS } from './constants'
 import { NavMain } from './nav-main'
 import { NavUser } from './nav-user'
 import { WorkspaceSwitcher } from './workspace-switcher'
 
-export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar variant="inset" {...props}>
+    <Sidebar variant="inset" className={cn('hidden md:flex', className)} {...props}>
       <SidebarHeader>
         <WorkspaceSwitcher />
       </SidebarHeader>

@@ -41,6 +41,10 @@ export const recoverPassword = async (email: string): Promise<void> => {
   await apiClient.post('/auth/password/forgot', { email })
 }
 
+export const resetPassword = async (input: { token: string; password: string }): Promise<void> => {
+  await apiClient.post('/auth/password/reset', input)
+}
+
 export const changePassword = async (input: {
   currentPassword: string
   password: string

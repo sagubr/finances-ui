@@ -33,7 +33,7 @@ export const CompetencePicker = () => {
       }}
     >
       <PopoverTrigger
-        render={<Button variant="outline" className="h-8 gap-2 px-2.5 font-normal sm:min-w-40" />}
+        render={<Button variant="outline" className="gap-2 font-normal sm:min-w-40" />}
       >
         <CalendarRange className="size-4" />
         <span className="text-foreground/70 hidden text-xs sm:inline">Competência</span>

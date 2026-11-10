@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BOTTOM_MORE_ITEMS,
+  BOTTOM_MORE_LINKS,
   BOTTOM_PRIMARY_ITEMS,
   NAV_GROUPS,
   NAVIGATION_MODULES,
@@ -21,16 +22,23 @@ describe('navigation module catalog', () => {
     ])
   })
 
+  it('exposes every nested destination in the mobile overflow menu', () => {
+    expect(BOTTOM_MORE_LINKS.map(({ id }) => id)).toEqual([
+      'financial-accounts',
+      'financial-categories',
+      'reports',
+      'settings',
+      'transaction-planning',
+    ])
+  })
+
   it('keeps transaction workflows inside their owning module', () => {
     const transactions = NAVIGATION_MODULES.find(({ id }) => id === 'transactions')
     const settings = NAVIGATION_MODULES.find(({ id }) => id === 'settings')
 
     expect(transactions?.items?.map(({ id }) => id)).toEqual([
       'transaction-list',
-      'transaction-installments',
-      'transaction-recurring',
-      'transaction-budgets',
-      'transaction-cards',
+      'transaction-planning',
     ])
     expect(settings?.items).toBeUndefined()
   })
@@ -52,7 +60,8 @@ describe('navigation module catalog', () => {
   it('keeps report views inside their owning module', () => {
     const reports = NAVIGATION_MODULES.find(({ id }) => id === 'reports')
 
-    expect(reports?.items?.map(({ id }) => id)).toEqual(['reports-annual', 'reports-forecast'])
+    expect(reports?.url).toBe('/reports')
+    expect(reports?.items).toBeUndefined()
   })
 
   it('does not expose privacy as an independent navigation module', () => {

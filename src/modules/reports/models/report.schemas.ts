@@ -12,6 +12,7 @@ import type {
   ComparisonReport,
   ExportAccepted,
   ExportJob,
+  MonthlyCalendar,
 } from './report.types'
 const annualMonth = z.object({
   month: competenceMonthSchema,
@@ -84,6 +85,26 @@ export const categorySpendingSchema = z.object({
   }),
   calculatedAt: z.string().datetime(),
 }) satisfies z.ZodType<CategorySpending>
+export const monthlyCalendarSchema = z.object({
+  month: competenceMonthSchema,
+  items: z.array(
+    z.object({
+      date: civilDateSchema,
+      realizedExpenseCents: safeIntegerSchema,
+      plannedExpenseCents: safeIntegerSchema,
+      realizedCount: z.number().int().nonnegative(),
+      plannedCount: z.number().int().nonnegative(),
+    }),
+  ),
+  totals: z.object({
+    realizedExpenseCents: safeIntegerSchema,
+    plannedExpenseCents: safeIntegerSchema,
+    realizedCount: z.number().int().nonnegative(),
+    plannedCount: z.number().int().nonnegative(),
+  }),
+  calculatedAt: z.string().datetime(),
+  dataVersion: z.number().int(),
+}) satisfies z.ZodType<MonthlyCalendar>
 export const exportAcceptedSchema = z.object({
   id: publicIdSchema,
   status: z.literal('PENDING'),

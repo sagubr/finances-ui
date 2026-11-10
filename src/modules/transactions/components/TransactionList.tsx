@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api/api-client.error'
+import { FinancialTypeBadge, type CashFlowType } from '@/components/FinancialTypeBadge'
 import {
   ResourceCollectionSkeleton,
   ResourceEmptyState,
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Spinner } from '@/components/ui/spinner'
+import { cn } from '@/lib/utils'
 import {
   getActiveWorkspaceRole,
   workspaceAccessStore,
@@ -24,6 +26,7 @@ import {
   Check,
   CircleDollarSign,
   HandCoins,
+  MapPin,
   Pencil,
   ReceiptText,
   RotateCcw,
@@ -72,6 +75,18 @@ const typeLabels = {
   CARD_PAYMENT: 'Pagamento de fatura',
   INVESTMENT: 'Investimento',
 } satisfies Record<Transaction['type'], string>
+
+const cashFlowType = (type: Transaction['type']): CashFlowType | null => {
+  if (type === 'INCOME') return 'INCOME'
+  if (type === 'EXPENSE' || type === 'CARD_PAYMENT') return 'EXPENSE'
+  return null
+}
+
+const signedAmount = (transaction: Transaction) => {
+  const flow = cashFlowType(transaction.type)
+  const prefix = flow === 'INCOME' ? '+ ' : flow === 'EXPENSE' ? '− ' : ''
+  return `${prefix}${formatMoney(transaction.amountCents, transaction.currency)}`
+}
 const actionContent = {
   confirm: {
     title: 'Confirmar transação?',
@@ -135,12 +150,36 @@ export const TransactionList = ({
   const columns = useMemo<ColumnDef<Transaction>[]>(
     () => [
       civilDateColumn<Transaction>('occurredOn', { header: 'Data', size: 120 }),
-      { accessorKey: 'description', header: 'Descrição', size: 300 },
+      {
+        accessorKey: 'description',
+        header: 'Descrição',
+        size: 300,
+        cell: ({ row }) => (
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate">{row.original.description}</span>
+            {row.original.location && (
+              <MapPin
+                aria-label="Possui local do gasto"
+                className="text-primary size-3.5 shrink-0"
+              />
+            )}
+          </div>
+        ),
+      },
       {
         accessorKey: 'type',
         header: 'Tipo',
         size: 140,
-        cell: ({ row }) => typeLabels[row.original.type],
+        cell: ({ row }) => {
+          const flow = cashFlowType(row.original.type)
+          return flow ? (
+            <FinancialTypeBadge type={flow} />
+          ) : (
+            <span className="text-muted-foreground text-xs font-medium">
+              {typeLabels[row.original.type]}
+            </span>
+          )
+        },
       },
       {
         accessorKey: 'status',
@@ -153,8 +192,15 @@ export const TransactionList = ({
         header: 'Valor',
         size: 150,
         cell: ({ row }) => (
-          <span className={row.original.type === 'INCOME' ? 'font-semibold text-emerald-600' : ''}>
-            {formatMoney(row.original.amountCents, row.original.currency)}
+          <span
+            className={cn(
+              'font-semibold tabular-nums',
+              cashFlowType(row.original.type) === 'INCOME' &&
+                'text-emerald-600 dark:text-emerald-300',
+              cashFlowType(row.original.type) === 'EXPENSE' && 'text-destructive',
+            )}
+          >
+            {signedAmount(row.original)}
           </span>
         ),
       },
@@ -348,135 +394,163 @@ export const TransactionList = ({
             <Card
               key={transaction.id}
               size="sm"
-              className="hover:ring-primary/40 flex flex-col justify-between transition-all hover:shadow-xs"
+              className={cn(
+                'flex flex-col justify-between border-l-4 transition-all hover:shadow-xs',
+                cashFlowType(transaction.type) === 'INCOME'
+                  ? 'border-l-emerald-500 hover:border-emerald-500'
+                  : cashFlowType(transaction.type) === 'EXPENSE'
+                    ? 'border-l-destructive hover:border-destructive'
+                    : 'border-l-muted-foreground/30 hover:border-l-primary',
+              )}
             >
               <CardHeader className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
                     {statusLabels[transaction.status]}
                   </Badge>
-                  <span className="text-muted-foreground text-[11px]">
+                  <span className="text-muted-foreground flex items-center gap-1 text-[11px]">
+                    {transaction.location && (
+                      <MapPin aria-label="Possui local do gasto" className="text-primary size-3" />
+                    )}
                     {formatDatePtBr(transaction.occurredOn)}
                   </span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <ReceiptText className="text-primary mt-0.5 size-3.5 shrink-0" />
+                  <ReceiptText
+                    className={cn(
+                      'mt-0.5 size-3.5 shrink-0',
+                      cashFlowType(transaction.type) === 'INCOME'
+                        ? 'text-emerald-600 dark:text-emerald-300'
+                        : cashFlowType(transaction.type) === 'EXPENSE'
+                          ? 'text-destructive'
+                          : 'text-primary',
+                    )}
+                  />
                   <div className="min-w-0">
                     <CardTitle className="truncate text-sm leading-tight font-semibold">
                       {transaction.description}
                     </CardTitle>
-                    <p className="text-muted-foreground mt-0.5 text-[11px]">
-                      {typeLabels[transaction.type]}
-                    </p>
+                    <div className="mt-1">
+                      {cashFlowType(transaction.type) ? (
+                        <FinancialTypeBadge
+                          type={cashFlowType(transaction.type) as CashFlowType}
+                          className="h-5 px-1.5 text-[10px]"
+                        />
+                      ) : (
+                        <p className="text-muted-foreground text-[11px]">
+                          {typeLabels[transaction.type]}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="pb-2">
                 <p
-                  className={`truncate text-lg font-semibold tabular-nums ${transaction.type === 'INCOME' ? 'text-emerald-600' : ''}`}
+                  className={cn(
+                    'truncate text-lg font-semibold tabular-nums',
+                    cashFlowType(transaction.type) === 'INCOME' &&
+                      'text-emerald-600 dark:text-emerald-300',
+                    cashFlowType(transaction.type) === 'EXPENSE' && 'text-destructive',
+                  )}
                 >
-                  {formatMoney(transaction.amountCents, transaction.currency)}
+                  {signedAmount(transaction)}
                 </p>
                 <p className="text-muted-foreground mt-0.5 text-[11px]">
                   Competência {formatCompetencePtBr(transaction.competenceMonth)}
                 </p>
               </CardContent>
-              <CardFooter className="flex min-h-[52px] items-center justify-end gap-1">
+              <CardFooter className="flex min-h-[52px] gap-2 border-t pt-3">
                 {isStatementProjection(transaction) ? (
-                  <TooltipButton
-                    title="Pagar fatura"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 flex-1 rounded-full"
                     disabled={!canMutate}
                     onClick={() => onPayStatement(transaction)}
                   >
-                    <HandCoins className="size-3.5" />
-                  </TooltipButton>
+                    <HandCoins /> Pagar fatura
+                  </Button>
                 ) : transaction.type === 'TRANSFER' ? (
                   <>
                     {transaction.status === 'PLANNED' && (
-                      <TooltipButton
-                        title="Confirmar transferência"
-                        size="icon"
-                        variant="ghost"
-                        className="size-7"
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 flex-1 rounded-full"
                         disabled={!canMutate}
                         onClick={() => setPendingAction({ action: 'confirm', transaction })}
                       >
-                        <Check className="size-3.5" />
-                      </TooltipButton>
+                        <Check /> Confirmar
+                      </Button>
                     )}
-                    {(transaction.status === 'CONFIRMED' || transaction.status === 'SETTLED') && (
-                      <TooltipButton
-                        title={
-                          transaction.status === 'SETTLED'
-                            ? 'Reverter liquidação da transferência'
-                            : 'Reverter confirmação da transferência'
-                        }
-                        size="icon"
-                        variant="ghost"
-                        className="size-7"
+                    {transaction.status === 'SETTLED' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 flex-1 rounded-full"
                         disabled={!canMutate}
                         onClick={() => setPendingAction({ action: 'revert', transaction })}
                       >
-                        <RotateCcw className="size-3.5" />
-                      </TooltipButton>
+                        <RotateCcw /> Reverter liquidação
+                      </Button>
                     )}
                     {canSettleTransaction(transaction.status) && (
-                      <TooltipButton
-                        title="Liquidar transferência"
-                        size="icon"
-                        variant="ghost"
-                        className="size-7"
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 flex-1 rounded-full"
                         disabled={!canMutate}
                         onClick={() => setPendingAction({ action: 'settle', transaction })}
                       >
-                        <CircleDollarSign className="size-3.5" />
+                        <CircleDollarSign /> Liquidar
+                      </Button>
+                    )}
+                    {transaction.status === 'CONFIRMED' && (
+                      <TooltipButton
+                        title="Reverter confirmação da transferência"
+                        size="icon"
+                        variant="outline"
+                        className="size-8 rounded-full"
+                        disabled={!canMutate}
+                        onClick={() => setPendingAction({ action: 'revert', transaction })}
+                      >
+                        <RotateCcw />
                       </TooltipButton>
                     )}
                   </>
                 ) : isCardManagedTransaction(transaction) && !isManualCardPurchase(transaction) ? (
-                  <p
-                    className="text-muted-foreground text-right text-[11px] leading-tight"
+                  <div
+                    className="text-muted-foreground flex h-8 flex-1 items-center justify-center rounded-full border px-3 text-[11px]"
                     title="Este lançamento é controlado pela fatura, parcelamento ou recorrência de origem."
                   >
                     Gerenciado no cartão
-                  </p>
+                  </div>
                 ) : (
                   <>
-                    <TooltipButton
-                      title={
-                        isCardManagedTransaction(transaction) && !isManualCardPurchase(transaction)
-                          ? 'Edite este lançamento pelo parcelamento ou recorrência de origem.'
-                          : 'Editar transação'
-                      }
-                      variant="ghost"
-                      size="icon"
-                      className="size-7"
-                      disabled={
-                        !canMutate ||
-                        (isCardManagedTransaction(transaction) &&
-                          !isManualCardPurchase(transaction))
-                      }
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1 rounded-full"
+                      disabled={!canMutate}
                       onClick={() =>
                         isManualCardPurchase(transaction)
                           ? onEditCardPurchase(transaction)
                           : onEdit(transaction)
                       }
                     >
-                      <Pencil className="size-3.5" />
-                    </TooltipButton>
+                      <Pencil /> {isManualCardPurchase(transaction) ? 'Editar compra' : 'Editar'}
+                    </Button>
                     {transaction.status === 'PLANNED' && (
                       <TooltipButton
                         title="Confirmar transação"
                         size="icon"
-                        variant="ghost"
-                        className="size-7"
+                        variant="outline"
+                        className="size-8 rounded-full"
                         disabled={!canMutate || isCardManagedTransaction(transaction)}
                         onClick={() => setPendingAction({ action: 'confirm', transaction })}
                       >
-                        <Check className="size-3.5" />
+                        <Check />
                       </TooltipButton>
                     )}
                     {(transaction.status === 'CONFIRMED' || transaction.status === 'SETTLED') && (
@@ -487,35 +561,35 @@ export const TransactionList = ({
                             : 'Reverter confirmação'
                         }
                         size="icon"
-                        variant="ghost"
-                        className="size-7"
+                        variant="outline"
+                        className="size-8 rounded-full"
                         disabled={!canMutate || isCardManagedTransaction(transaction)}
                         onClick={() => setPendingAction({ action: 'revert', transaction })}
                       >
-                        <RotateCcw className="size-3.5" />
+                        <RotateCcw />
                       </TooltipButton>
                     )}
                     {canSettleTransaction(transaction.status) && (
                       <TooltipButton
                         title="Liquidar transação"
                         size="icon"
-                        variant="ghost"
-                        className="size-7"
+                        variant="outline"
+                        className="size-8 rounded-full"
                         disabled={!canMutate || isCardManagedTransaction(transaction)}
                         onClick={() => setPendingAction({ action: 'settle', transaction })}
                       >
-                        <CircleDollarSign className="size-3.5" />
+                        <CircleDollarSign />
                       </TooltipButton>
                     )}
                     <TooltipButton
                       title="Excluir transação"
                       size="icon"
-                      variant="ghost"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive size-7"
+                      variant="outline"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive size-8 rounded-full"
                       disabled={!canMutate || isCardManagedTransaction(transaction)}
                       onClick={() => setPendingAction({ action: 'remove', transaction })}
                     >
-                      <Trash2 className="size-3.5" />
+                      <Trash2 />
                     </TooltipButton>
                   </>
                 )}

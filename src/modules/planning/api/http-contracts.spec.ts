@@ -16,6 +16,7 @@ import type {
   StatementPayment,
   StatementPaymentInput,
   StatementPurchase,
+  StatementReopen,
 } from '../models/planning.types'
 import { planningApi } from './planning.api'
 
@@ -39,6 +40,8 @@ describe('HTTP client contracts', () => {
       planningApi.deleteCardPurchase
     const closeStatement: (statement: Statement) => Promise<StatementClose> =
       planningApi.closeStatement
+    const reopenStatement: (statement: Statement) => Promise<StatementReopen> =
+      planningApi.reopenStatement
     const payStatement: (
       statement: Statement,
       input: StatementPaymentInput,
@@ -52,6 +55,7 @@ describe('HTTP client contracts', () => {
     expect(updateCardPurchase).toBe(planningApi.updateCardPurchase)
     expect(deleteCardPurchase).toBe(planningApi.deleteCardPurchase)
     expect(closeStatement).toBe(planningApi.closeStatement)
+    expect(reopenStatement).toBe(planningApi.reopenStatement)
     expect(payStatement).toBe(planningApi.payStatement)
   })
 

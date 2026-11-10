@@ -3,18 +3,21 @@ import {
   ResourceEmptyState,
 } from '@/components/ResourceCollectionState'
 import { ResourceErrorState } from '@/components/ResourceErrorState'
+import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
 import Table from '@/components/Table'
 import { civilDateColumn } from '@/components/Table/columns/date.columns'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getDomainLabel } from '@/lib/domain-labels'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useResourceViewMode } from '@/hooks/useResourceViewStore'
 import { useCompetenceMonth } from '@/modules/competence/store/competence.store'
 import { formatMoney } from '@/modules/transactions/utils/money'
 import {
   getActiveWorkspaceBaseCurrency,
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
+import { formatDatePtBr } from '@/utils/date'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
@@ -25,7 +28,6 @@ import {
   categorySpendingQuery,
   comparisonQuery,
   forecastQuery,
-  useCreateExport,
 } from '../queries/report.queries'
 
 const previousMonth = (month: string) => {
@@ -39,24 +41,10 @@ const SummaryMetric = ({ label, value }: Readonly<{ label: string; value: string
     <p className="mt-1 text-lg font-semibold">{value}</p>
   </div>
 )
-export type ReportSection = 'annual' | 'forecast' | 'exports'
-
-const sectionContent: Record<ReportSection, Readonly<{ title: string; description: string }>> = {
-  annual: {
-    title: 'Relatório anual',
-    description: 'Consolidação do ano e comparação da competência atual com o mês anterior.',
-  },
-  forecast: {
-    title: 'Fluxo de caixa previsto',
-    description: 'Acompanhe entradas, saídas e saldo planejado para a competência.',
-  },
-  exports: {
-    title: 'Exportações',
-    description: 'Gere arquivos assíncronos com seus dados financeiros consolidados.',
-  },
-}
+export type ReportSection = 'annual' | 'forecast'
 
 export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) => {
+  const navigate = useNavigate()
   const month = useCompetenceMonth()
   const currency = useStore(workspaceAccessStore, getActiveWorkspaceBaseCurrency)
   const year = Number(month.slice(0, 4))
@@ -74,7 +62,9 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
     .toISOString()
     .slice(0, 10)
   const forecast = useQuery({ ...forecastQuery(from, to), enabled: section === 'forecast' })
-  const createExport = useCreateExport()
+  const [annualView, setAnnualView] = useResourceViewMode('reports-annual', 'list')
+  const [categoryView, setCategoryView] = useResourceViewMode('reports-categories', 'list')
+  const [forecastView, setForecastView] = useResourceViewMode('reports-forecast', 'list')
   const forecastColumns = useMemo<ColumnDef<CashflowForecast['items'][number]>[]>(
     () => [
       civilDateColumn<CashflowForecast['items'][number]>('date', { header: 'Data', size: 150 }),
@@ -149,12 +139,30 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
     <div className="flex flex-col gap-6">
       <header className="border-b pb-5">
         <div>
-          <h1 className="font-heading text-2xl font-semibold">{sectionContent[section].title}</h1>
+          <h1 className="font-heading text-2xl font-semibold">Relatórios</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            {sectionContent[section].description}
+            Analise resultados consolidados e acompanhe o fluxo de caixa previsto.
           </p>
         </div>
       </header>
+      <Tabs
+        value={section}
+        onValueChange={(value) =>
+          void navigate({
+            to: '/reports',
+            search: { tab: value === 'forecast' ? 'forecast' : undefined },
+          })
+        }
+      >
+        <TabsList className="grid min-h-14 w-full grid-cols-2 p-1.5">
+          <TabsTrigger value="annual" className="min-h-11 text-base">
+            Relatório anual
+          </TabsTrigger>
+          <TabsTrigger value="forecast" className="min-h-11 text-base">
+            Fluxo de caixa
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
       {section === 'annual' && (
         <Card>
           <CardHeader>
@@ -198,7 +206,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
         </Card>
       )}
       {section === 'annual' && (annual.isPending || !currency) && (
-        <ResourceCollectionSkeleton viewMode="list" rows={12} />
+        <ResourceCollectionSkeleton viewMode={annualView} rows={12} />
       )}
       {section === 'annual' && annual.isError && (
         <ResourceErrorState
@@ -210,7 +218,12 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
         />
       )}
       {section === 'annual' && annual.data && currency && (
-        <AnnualReportTable report={annual.data} currency={currency} />
+        <AnnualReportTable
+          report={annual.data}
+          currency={currency}
+          viewMode={annualView}
+          onViewModeChange={setAnnualView}
+        />
       )}
       {section === 'annual' && (
         <Card>
@@ -218,6 +231,12 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
             <CardTitle>Gastos por categoria</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <ResourceViewToolbar
+              count={categorySpending.data?.items.length ?? 0}
+              label="categorias"
+              viewMode={categoryView}
+              onViewModeChange={setCategoryView}
+            />
             {categorySpending.data && currency && (
               <div className="grid gap-3 sm:grid-cols-3">
                 <SummaryMetric
@@ -235,7 +254,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
               </div>
             )}
             {categorySpending.isPending || !currency ? (
-              <ResourceCollectionSkeleton viewMode="list" rows={5} className="h-[360px]" />
+              <ResourceCollectionSkeleton viewMode={categoryView} rows={5} className="h-[360px]" />
             ) : categorySpending.isError ? (
               <ResourceErrorState
                 compact
@@ -250,7 +269,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
                 title="Nenhum gasto nesta competência"
                 description="Os gastos realizados e planejados aparecerão aqui quando houver lançamentos."
               />
-            ) : (
+            ) : categoryView === 'list' ? (
               <div className="h-[360px] rounded-xl border">
                 <Table
                   columns={categoryColumns}
@@ -260,29 +279,40 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
                   shouldRenderCheckbox={false}
                 />
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-      {section === 'exports' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Exportação</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-muted-foreground text-sm">
-              Gere um arquivo assíncrono com os dados consolidados.
-            </p>
-            <Button
-              disabled={createExport.isPending}
-              onClick={() => createExport.mutate({ report: 'ANNUAL', format: 'CSV' })}
-            >
-              Exportar CSV anual
-            </Button>
-            {createExport.data && (
-              <p className="text-sm">
-                Solicitação {createExport.data.id}: {getDomainLabel(createExport.data.status)}
-              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {categorySpending.data.items.map((item) => (
+                  <Card key={item.categoryId} size="sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: item.color ?? '#64748B' }}
+                        />
+                        {item.categoryName}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">Realizado</span>
+                        <span className="font-medium">
+                          {formatMoney(item.realizedCents, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">Previsto</span>
+                        <span className="font-medium">
+                          {formatMoney(item.plannedCents, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3 border-t pt-2">
+                        <span className="font-medium">Total</span>
+                        <strong>{formatMoney(item.totalCents, currency)}</strong>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -292,9 +322,15 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
           <CardHeader>
             <CardTitle>Fluxo de caixa previsto</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <ResourceViewToolbar
+              count={forecast.data?.items.length ?? 0}
+              label="dias projetados"
+              viewMode={forecastView}
+              onViewModeChange={setForecastView}
+            />
             {forecast.data && currency && (
-              <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <SummaryMetric
                   label="Entradas previstas"
                   value={formatMoney(forecast.data.totals.plannedIncomeCents, currency)}
@@ -314,7 +350,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
               </div>
             )}
             {forecast.isPending || !currency ? (
-              <ResourceCollectionSkeleton viewMode="list" rows={6} className="h-[420px]" />
+              <ResourceCollectionSkeleton viewMode={forecastView} rows={6} className="h-[420px]" />
             ) : forecast.isError ? (
               <ResourceErrorState
                 compact
@@ -329,7 +365,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
                 title="Nenhum lançamento previsto"
                 description="Cadastre lançamentos ou aportes planejados para visualizar a projeção da competência."
               />
-            ) : (
+            ) : forecastView === 'list' ? (
               <div className="h-[420px] rounded-xl border">
                 <Table
                   columns={forecastColumns}
@@ -338,6 +374,46 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
                   enableRowSelection={false}
                   shouldRenderCheckbox={false}
                 />
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {forecast.data.items.map((item) => (
+                  <Card key={item.date} size="sm">
+                    <CardHeader>
+                      <CardTitle className="text-base">{formatDatePtBr(item.date)}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">Entradas</span>
+                        <span className="font-medium">
+                          {formatMoney(item.plannedIncomeCents, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">Saídas</span>
+                        <span className="font-medium">
+                          {formatMoney(item.plannedExpenseCents, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">Aportes</span>
+                        <span className="font-medium">
+                          {formatMoney(item.plannedInvestmentCents, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3 border-t pt-2">
+                        <span className="font-medium">Saldo</span>
+                        <strong
+                          className={
+                            item.plannedNetCents < 0 ? 'text-destructive' : 'text-emerald-600'
+                          }
+                        >
+                          {formatMoney(item.plannedNetCents, currency)}
+                        </strong>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </CardContent>

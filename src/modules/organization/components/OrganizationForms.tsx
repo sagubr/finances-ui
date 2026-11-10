@@ -2,6 +2,8 @@ import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
+import { formatCentsForInput, parseMoneyToCents } from '@/lib/money'
 import {
   getActiveWorkspaceBaseCurrency,
   workspaceAccessStore,
@@ -28,7 +30,10 @@ const goalFormSchema = z.object({
 })
 const wishlistFormSchema = z.object({
   name: z.string().trim().min(1).max(200),
-  price: z.union([z.literal(''), z.string().regex(/^\d+([,.]\d{1,2})?$/)]),
+  price: z.union([
+    z.literal(''),
+    z.string().refine((value) => parseMoneyToCents(value) !== null, 'Informe um valor válido.'),
+  ]),
   currency: z.string().trim().length(3),
 })
 export const ActivityForm = ({
@@ -223,17 +228,13 @@ export const WishlistForm = ({
   const form = useForm({
     defaultValues: {
       name: item?.name ?? '',
-      price: item?.estimatedPriceCents
-        ? (item.estimatedPriceCents / 100).toFixed(2).replace('.', ',')
-        : '',
+      price: formatCentsForInput(item?.estimatedPriceCents),
       currency: item?.currency ?? baseCurrency ?? '',
     },
     validators: { onSubmit: wishlistFormSchema },
     onSubmit: async ({ value, formApi }) => {
-      const cents = value.price
-        ? Math.round(Number(value.price.replace(',', '.')) * 100)
-        : undefined
-      if (!value.name || (cents !== undefined && cents <= 0)) return
+      const cents = value.price ? parseMoneyToCents(value.price) : undefined
+      if (!value.name || cents === null) return
       const input = {
         name: value.name,
         estimatedPriceCents: cents,
@@ -258,10 +259,10 @@ export const WishlistForm = ({
         {(field) => (
           <Field>
             <FieldLabel htmlFor={`wish-${field.name}`}>Desejo</FieldLabel>
-            <Input
+            <MoneyInput
               id={`wish-${field.name}`}
               value={field.state.value}
-              onChange={(event) => field.handleChange(event.target.value)}
+              onValueChange={field.handleChange}
             />
           </Field>
         )}

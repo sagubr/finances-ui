@@ -28,7 +28,10 @@ export const ResourceViewToolbar = ({
       {count} {label}
     </p>
     <ManagementBarContainer className="shadow-sm">
-      <ViewModeToggle value={viewMode} onValueChange={onViewModeChange} />
+      <ViewModeToggle
+        value={viewMode}
+        onValueChange={(mode) => mode !== 'map' && onViewModeChange(mode)}
+      />
       {actions}
       {onCreate && createLabel && (
         <TooltipButton

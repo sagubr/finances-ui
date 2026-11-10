@@ -1,3 +1,4 @@
+import { FullPageState } from '@/components/FullPageState'
 import { ArrowLeft, RefreshCw, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../ui/button'
@@ -29,19 +30,13 @@ const VersionOutdated = ({
   }
 
   return (
-    <div className="bg-background fixed inset-0 z-50 flex h-screen w-screen flex-col items-center justify-center p-6 text-center select-none">
-      <div className="flex max-w-md flex-col items-center gap-5">
-        <div className="border-primary/20 bg-primary/10 text-primary flex size-20 items-center justify-center rounded-2xl border shadow-sm">
-          <Sparkles className="size-10" />
-        </div>
-
-        <div className="space-y-1.5">
-          <h1 className="text-primary text-5xl font-extrabold tracking-tight">Atualização</h1>
-          <p className="text-foreground text-lg font-semibold tracking-wider uppercase">{title}</p>
-          <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+    <FullPageState
+      icon={Sparkles}
+      eyebrow="Atualização disponível"
+      title={title}
+      description={description}
+      actions={
+        <>
           <Button
             variant="outline"
             onClick={() => window.history.back()}
@@ -55,9 +50,9 @@ const VersionOutdated = ({
             <RefreshCw className={`size-4 ${isUpdating ? 'animate-spin' : ''}`} />
             {isUpdating ? 'Atualizando...' : 'Atualizar agora'}
           </Button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   )
 }
 

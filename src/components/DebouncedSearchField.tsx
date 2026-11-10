@@ -1,5 +1,5 @@
-import { Input } from '@/components/ui/input'
-import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { Search } from 'lucide-react'
 import { memo, useEffect, useRef, useState } from 'react'
 
@@ -18,7 +18,7 @@ export const DebouncedSearchField = memo(function DebouncedSearchField({
   placeholder,
   delay = 300,
   inputClassName,
-  containerClassName = 'relative min-w-0 flex-1',
+  containerClassName = 'min-w-0 flex-1',
 }: DebouncedSearchFieldProps) {
   const [draft, setDraft] = useState(value)
   const deferredDraft = useDebouncedValue(draft, delay)
@@ -46,14 +46,16 @@ export const DebouncedSearchField = memo(function DebouncedSearchField({
   }, [deferredDraft, value])
 
   return (
-    <div className={containerClassName}>
-      <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-      <Input
+    <InputGroup className={containerClassName}>
+      <InputGroupAddon>
+        <Search className="size-4" />
+      </InputGroupAddon>
+      <InputGroupInput
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         placeholder={placeholder}
-        className={inputClassName ?? 'pl-9'}
+        className={inputClassName}
       />
-    </div>
+    </InputGroup>
   )
 })

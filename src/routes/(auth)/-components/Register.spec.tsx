@@ -50,11 +50,22 @@ describe('Register', () => {
     expect(confirmation.getAttribute('type')).toBe('text')
   })
 
-  it('não envia senha menor que doze caracteres', async () => {
+  it('não envia senha menor que oito caracteres', async () => {
     renderRegister()
     fillRegistration('curta')
     fireEvent.click(screen.getByRole('button', { name: 'Criar conta' }))
-    await waitFor(() => expect(screen.getByText('Use pelo menos 12 caracteres')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Use pelo menos 8 caracteres')).toBeTruthy())
+    expect(registerUserMock).not.toHaveBeenCalled()
+  })
+
+  it('avisa assim que a confirmação não coincide com a senha', async () => {
+    renderRegister()
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'senha-segura-123' } })
+    const confirmation = screen.getByLabelText('Confirmar senha')
+    fireEvent.change(confirmation, { target: { value: 'senha-diferente' } })
+    fireEvent.blur(confirmation)
+
+    expect(await screen.findByText('As senhas não coincidem')).toBeTruthy()
     expect(registerUserMock).not.toHaveBeenCalled()
   })
 

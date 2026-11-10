@@ -10,12 +10,13 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { z } from 'zod'
 import { AuthPageShell } from './AuthPageShell'
+import { AuthenticationDivider, GoogleAuthenticationButton } from './GoogleAuthenticationButton'
 
 const registerSchema = z
   .object({
     displayName: z.string().trim().min(2, 'Informe seu nome').max(120),
     email: z.string().trim().email('Informe um e-mail válido'),
-    password: z.string().min(12, 'Use pelo menos 12 caracteres').max(128),
+    password: z.string().min(8, 'Use pelo menos 8 caracteres').max(128),
     confirmPassword: z.string(),
   })
   .refine(({ password, confirmPassword }) => password === confirmPassword, {
@@ -43,7 +44,7 @@ const registerFields = [
     label: 'Senha',
     type: 'password',
     autoComplete: 'new-password',
-    placeholder: 'Use pelo menos 12 caracteres',
+    placeholder: 'Use pelo menos 8 caracteres',
   },
   {
     name: 'confirmPassword',
@@ -77,7 +78,7 @@ export const Register = () => {
 
   const form = useForm({
     defaultValues: { displayName: '', email: '', password: '', confirmPassword: '' },
-    validators: { onSubmit: registerSchema },
+    validators: { onChange: registerSchema, onSubmit: registerSchema },
     onSubmit: ({ value }) =>
       mutation.mutate({
         displayName: value.displayName,
@@ -123,6 +124,10 @@ export const Register = () => {
         </>
       }
     >
+      <div className="mb-5 grid gap-5">
+        <GoogleAuthenticationButton label="Criar conta com o Google" />
+        <AuthenticationDivider />
+      </div>
       <form
         className="grid gap-5"
         onSubmit={(event) => {

@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useResourceViewMode } from '@/hooks/use-resource-view-mode'
+import { useResourceViewMode } from '@/hooks/useResourceViewStore'
 import { getDomainLabel } from '@/lib/domain-labels'
 import { formatMoney } from '@/modules/transactions/utils/money'
 import {

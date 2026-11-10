@@ -4,6 +4,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { parseCivilDate, toCivilDate, todayCivilDate } from '@/utils/date'
 import { useForm } from '@tanstack/react-form'
@@ -163,12 +164,7 @@ export const TransferForm = ({
         {(field) => (
           <Field>
             <FieldLabel>Valor</FieldLabel>
-            <Input
-              inputMode="decimal"
-              placeholder="0,00"
-              value={field.state.value}
-              onChange={(event) => field.handleChange(event.target.value)}
-            />
+            <MoneyInput value={field.state.value} onValueChange={field.handleChange} />
           </Field>
         )}
       </form.Field>

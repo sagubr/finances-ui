@@ -1,18 +1,6 @@
 import type { FileRouteTypes } from '@/routeTree.gen'
 import type { LucideIcon } from 'lucide-react'
-import {
-  BarChart3,
-  CalendarClock,
-  House,
-  Landmark,
-  ReceiptText,
-  Repeat2,
-  Settings,
-  Tags,
-  Target,
-  TrendingUp,
-  WalletCards,
-} from 'lucide-react'
+import { BarChart3, House, Landmark, ReceiptText, Settings, Tags, WalletCards } from 'lucide-react'
 
 export type NavItem = {
   id: string
@@ -55,21 +43,18 @@ export const NAVIGATION_MODULES = [
     sidebar: { visible: true, order: 20 },
     mobile: { placement: 'primary', order: 20 },
     items: [
-      { id: 'transaction-list', title: 'Lançamentos', url: '/transactions', icon: ReceiptText },
       {
-        id: 'transaction-installments',
+        id: 'transaction-list',
+        title: 'Transações',
+        url: '/transactions',
+        icon: ReceiptText,
+      },
+      {
+        id: 'transaction-planning',
         title: 'Parcelamentos',
         url: '/installments',
-        icon: CalendarClock,
+        icon: WalletCards,
       },
-      {
-        id: 'transaction-recurring',
-        title: 'Recorrências',
-        url: '/recurring',
-        icon: Repeat2,
-      },
-      { id: 'transaction-budgets', title: 'Orçamentos', url: '/budgets', icon: Target },
-      { id: 'transaction-cards', title: 'Cartões', url: '/cards', icon: WalletCards },
     ],
   }),
   module({
@@ -93,15 +78,6 @@ export const NAVIGATION_MODULES = [
     group: 'insights',
     sidebar: { visible: true, order: 50 },
     mobile: { placement: 'more', order: 10 },
-    items: [
-      { id: 'reports-annual', title: 'Relatório anual', url: '/reports', icon: BarChart3 },
-      {
-        id: 'reports-forecast',
-        title: 'Fluxo previsto',
-        url: '/reports/forecast',
-        icon: TrendingUp,
-      },
-    ],
   }),
   module({
     id: 'settings',
@@ -144,3 +120,11 @@ const mobileItems = (placement: Exclude<MobilePlacement, 'hidden'>) =>
 
 export const BOTTOM_PRIMARY_ITEMS: readonly NavItem[] = mobileItems('primary')
 export const BOTTOM_MORE_ITEMS: readonly NavItem[] = mobileItems('more')
+
+const childDestinations = (item: NavItem) =>
+  item.items?.filter((child) => child.url && child.url !== item.url) ?? []
+
+export const BOTTOM_MORE_LINKS: readonly NavItem[] = [
+  ...BOTTOM_MORE_ITEMS.flatMap((item) => item.items ?? [item]),
+  ...BOTTOM_PRIMARY_ITEMS.flatMap(childDestinations),
+]

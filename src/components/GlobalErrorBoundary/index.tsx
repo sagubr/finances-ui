@@ -1,3 +1,4 @@
+import { FullPageState } from '@/components/FullPageState'
 import { AlertTriangle, RefreshCw, RotateCcw } from 'lucide-react'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Button } from '../ui/button'
@@ -81,30 +82,22 @@ export class GlobalErrorBoundary extends Component<
     const errorMessage = this.state.error?.message || 'Ocorreu uma falha inesperada na interface.'
 
     return (
-      <div className="bg-background fixed inset-0 z-50 flex h-screen w-screen flex-col items-center justify-center p-6 text-center select-none">
-        <div className="flex max-w-md flex-col items-center gap-5">
-          <div className="border-destructive/20 bg-destructive/10 text-destructive flex size-20 items-center justify-center rounded-2xl border shadow-sm">
-            <AlertTriangle className="size-10" />
-          </div>
-
-          <div className="space-y-1.5">
-            <h1 className="text-destructive text-5xl font-extrabold tracking-tight">Ops!</h1>
-            <p className="text-foreground text-lg font-semibold tracking-wider uppercase">
-              Ocorreu um erro inesperado
-            </p>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              A aplicação encontrou uma falha ao renderizar este componente. Você pode tentar
-              reiniciar o estado da interface ou recarregar a página.
-            </p>
-          </div>
-
-          {import.meta.env.DEV && this.state.error?.message && (
+      <FullPageState
+        icon={AlertTriangle}
+        eyebrow="Falha na interface"
+        title="Ocorreu um erro inesperado"
+        description="A aplicação encontrou uma falha ao exibir este conteúdo. Tente novamente ou recarregue a página."
+        tone="destructive"
+        role="alert"
+        detail={
+          import.meta.env.DEV && this.state.error?.message ? (
             <div className="bg-muted/50 border-border/50 text-muted-foreground w-full max-w-sm rounded-lg border p-3 text-left font-mono text-xs break-words">
               {errorMessage}
             </div>
-          )}
-
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          ) : undefined
+        }
+        actions={
+          <>
             <Button variant="outline" onClick={this.reset} className="gap-2">
               <RotateCcw className="size-4" />
               Tentar novamente
@@ -113,9 +106,9 @@ export class GlobalErrorBoundary extends Component<
               <RefreshCw className="size-4" />
               Recarregar aplicação
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     )
   }
 }

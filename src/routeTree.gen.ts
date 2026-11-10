@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as authConfirmEmailRouteImport } from './routes/(auth)/confirm-email'
+import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as authRegisterRouteImport } from './routes/(auth)/register'
 import { Route as authResendConfirmationRouteImport } from './routes/(auth)/resend-confirmation'
+import { Route as authResetPasswordRouteImport } from './routes/(auth)/reset-password'
 import { Route as AppAccountsRouteImport } from './routes/_app/accounts'
 import { Route as AppActivitiesRouteImport } from './routes/_app/activities'
 import { Route as AppAssetsRouteImport } from './routes/_app/assets'
@@ -58,6 +60,11 @@ const authConfirmEmailRoute = authConfirmEmailRouteImport.update({
   path: '/confirm-email',
   getParentRoute: () => rootRouteImport,
 } as any)
+const authForgotPasswordRoute = authForgotPasswordRouteImport.update({
+  id: '/(auth)/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const authLoginRoute = authLoginRouteImport.update({
   id: '/(auth)/login',
   path: '/login',
@@ -71,6 +78,11 @@ const authRegisterRoute = authRegisterRouteImport.update({
 const authResendConfirmationRoute = authResendConfirmationRouteImport.update({
   id: '/(auth)/resend-confirmation',
   path: '/resend-confirmation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authResetPasswordRoute = authResetPasswordRouteImport.update({
+  id: '/(auth)/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAccountsRoute = AppAccountsRouteImport.update({
@@ -217,9 +229,11 @@ const AppReportsForecastRoute = AppReportsForecastRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/confirm-email': typeof authConfirmEmailRoute
+  '/forgot-password': typeof authForgotPasswordRoute
   '/login': typeof authLoginRoute
   '/register': typeof authRegisterRoute
   '/resend-confirmation': typeof authResendConfirmationRoute
+  '/reset-password': typeof authResetPasswordRoute
   '/accounts': typeof AppAccountsRoute
   '/activities': typeof AppActivitiesRoute
   '/assets': typeof AppAssetsRoute
@@ -252,9 +266,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/confirm-email': typeof authConfirmEmailRoute
+  '/forgot-password': typeof authForgotPasswordRoute
   '/login': typeof authLoginRoute
   '/register': typeof authRegisterRoute
   '/resend-confirmation': typeof authResendConfirmationRoute
+  '/reset-password': typeof authResetPasswordRoute
   '/accounts': typeof AppAccountsRoute
   '/activities': typeof AppActivitiesRoute
   '/assets': typeof AppAssetsRoute
@@ -289,9 +305,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/(auth)/confirm-email': typeof authConfirmEmailRoute
+  '/(auth)/forgot-password': typeof authForgotPasswordRoute
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/register': typeof authRegisterRoute
   '/(auth)/resend-confirmation': typeof authResendConfirmationRoute
+  '/(auth)/reset-password': typeof authResetPasswordRoute
   '/_app/accounts': typeof AppAccountsRoute
   '/_app/activities': typeof AppActivitiesRoute
   '/_app/assets': typeof AppAssetsRoute
@@ -326,9 +344,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/confirm-email'
+    | '/forgot-password'
     | '/login'
     | '/register'
     | '/resend-confirmation'
+    | '/reset-password'
     | '/accounts'
     | '/activities'
     | '/assets'
@@ -361,9 +381,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/confirm-email'
+    | '/forgot-password'
     | '/login'
     | '/register'
     | '/resend-confirmation'
+    | '/reset-password'
     | '/accounts'
     | '/activities'
     | '/assets'
@@ -397,9 +419,11 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/(auth)/confirm-email'
+    | '/(auth)/forgot-password'
     | '/(auth)/login'
     | '/(auth)/register'
     | '/(auth)/resend-confirmation'
+    | '/(auth)/reset-password'
     | '/_app/accounts'
     | '/_app/activities'
     | '/_app/assets'
@@ -434,9 +458,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   authConfirmEmailRoute: typeof authConfirmEmailRoute
+  authForgotPasswordRoute: typeof authForgotPasswordRoute
   authLoginRoute: typeof authLoginRoute
   authRegisterRoute: typeof authRegisterRoute
   authResendConfirmationRoute: typeof authResendConfirmationRoute
+  authResetPasswordRoute: typeof authResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -462,6 +488,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authConfirmEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(auth)/forgot-password': {
+      id: '/(auth)/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof authForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(auth)/login': {
       id: '/(auth)/login'
       path: '/login'
@@ -481,6 +514,13 @@ declare module '@tanstack/react-router' {
       path: '/resend-confirmation'
       fullPath: '/resend-confirmation'
       preLoaderRoute: typeof authResendConfirmationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/reset-password': {
+      id: '/(auth)/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof authResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/accounts': {
@@ -750,9 +790,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   authConfirmEmailRoute: authConfirmEmailRoute,
+  authForgotPasswordRoute: authForgotPasswordRoute,
   authLoginRoute: authLoginRoute,
   authRegisterRoute: authRegisterRoute,
   authResendConfirmationRoute: authResendConfirmationRoute,
+  authResetPasswordRoute: authResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

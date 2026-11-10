@@ -4,10 +4,24 @@ import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import * as React from 'react'
 
 import { Button } from '#/components/ui/button.tsx'
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerOverlay,
+  DrawerPortal,
+  DrawerTitle,
+  DrawerTrigger,
+} from '#/components/ui/drawer.tsx'
+import { useIsMobile } from '#/hooks/useMobile.ts'
 import { cn } from '#/lib/utils.ts'
 import { RiCloseLine } from '@remixicon/react'
 
-const DialogContext = React.createContext<{ open: boolean }>({ open: false })
+const DialogContext = React.createContext<{ open: boolean; isDesktop: boolean }>({
+  open: false,
+  isDesktop: true,
+})
 
 type AnimatedDialogContentProps = {
   open: boolean
@@ -87,6 +101,7 @@ function Dialog({
   onOpenChange,
   ...props
 }: DialogPrimitive.Root.Props) {
+  const isDesktop = !useIsMobile()
   const [internalOpen, setInternalOpen] = React.useState(defaultOpen)
   const open = openProp ?? internalOpen
 
@@ -97,35 +112,61 @@ function Dialog({
     },
     [onOpenChange, openProp],
   )
-  const contextValue = React.useMemo(() => ({ open }), [open])
+  const contextValue = React.useMemo(() => ({ open, isDesktop }), [isDesktop, open])
 
-  return (
-    <DialogContext.Provider value={contextValue}>
-      <DialogPrimitive.Root
-        data-slot="dialog"
-        open={open}
-        onOpenChange={handleOpenChange}
-        {...props}
-      >
-        {children}
-      </DialogPrimitive.Root>
-    </DialogContext.Provider>
+  const content = isDesktop ? (
+    <DialogPrimitive.Root data-slot="dialog" open={open} onOpenChange={handleOpenChange} {...props}>
+      {children}
+    </DialogPrimitive.Root>
+  ) : (
+    <Drawer
+      data-slot="dialog"
+      open={open}
+      onOpenChange={handleOpenChange as React.ComponentProps<typeof Drawer>['onOpenChange']}
+      showSwipeHandle
+      {...(props as React.ComponentProps<typeof Drawer>)}
+    >
+      {children}
+    </Drawer>
   )
+
+  return <DialogContext.Provider value={contextValue}>{content}</DialogContext.Provider>
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
+  const { isDesktop } = React.useContext(DialogContext)
+  if (!isDesktop) {
+    return <DrawerTrigger {...(props as React.ComponentProps<typeof DrawerTrigger>)} />
+  }
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
 function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
+  const { isDesktop } = React.useContext(DialogContext)
+  if (!isDesktop) {
+    return <DrawerPortal {...(props as React.ComponentProps<typeof DrawerPortal>)} />
+  }
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
 function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
+  const { isDesktop } = React.useContext(DialogContext)
+  if (!isDesktop) {
+    return <DrawerClose {...(props as React.ComponentProps<typeof DrawerClose>)} />
+  }
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
 function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) {
+  const { isDesktop } = React.useContext(DialogContext)
+  if (!isDesktop) {
+    return (
+      <DrawerOverlay
+        className={className}
+        {...(props as React.ComponentProps<typeof DrawerOverlay>)}
+      />
+    )
+  }
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
@@ -152,8 +193,25 @@ function DialogContent({
   nested?: boolean
   overlayClassName?: string
 }) {
-  const { open: contextOpen } = React.useContext(DialogContext)
+  const { open: contextOpen, isDesktop } = React.useContext(DialogContext)
   const open = openProp ?? contextOpen
+
+  if (!isDesktop) {
+    return (
+      <DrawerContent>
+        <div
+          data-slot="dialog-content"
+          className={cn(
+            'relative mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
+            typeof className === 'string' ? className : undefined,
+          )}
+          {...(props as React.ComponentProps<'div'>)}
+        >
+          {children}
+        </div>
+      </DrawerContent>
+    )
+  }
 
   return (
     <AnimatedDialogContent
@@ -183,6 +241,7 @@ function DialogFooter({
   children,
   ...props
 }: React.ComponentProps<'div'> & { showCloseButton?: boolean }) {
+  const { isDesktop } = React.useContext(DialogContext)
   return (
     <div
       data-slot="dialog-footer"
@@ -193,14 +252,28 @@ function DialogFooter({
       {...props}
     >
       {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close render={<Button variant="outline" />}>Fechar</DialogPrimitive.Close>
-      )}
+      {showCloseButton &&
+        (isDesktop ? (
+          <DialogPrimitive.Close render={<Button variant="outline" />}>
+            Fechar
+          </DialogPrimitive.Close>
+        ) : (
+          <DrawerClose render={<Button variant="outline" />}>Fechar</DrawerClose>
+        ))}
     </div>
   )
 }
 
 function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+  const { isDesktop } = React.useContext(DialogContext)
+  if (!isDesktop) {
+    return (
+      <DrawerTitle
+        className={cn('font-heading text-base leading-none font-medium', className)}
+        {...(props as React.ComponentProps<typeof DrawerTitle>)}
+      />
+    )
+  }
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
@@ -211,6 +284,18 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
 }
 
 function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {
+  const { isDesktop } = React.useContext(DialogContext)
+  if (!isDesktop) {
+    return (
+      <DrawerDescription
+        className={cn(
+          'text-foreground/70 *:[a]:hover:text-foreground text-sm *:[a]:underline *:[a]:underline-offset-3',
+          className,
+        )}
+        {...(props as React.ComponentProps<typeof DrawerDescription>)}
+      />
+    )
+  }
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"

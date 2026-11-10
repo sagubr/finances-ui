@@ -12,6 +12,8 @@ import type {
   CursorPage,
   MonthlySummary,
   Transaction,
+  TransactionLocation,
+  TransactionMap,
   Transfer,
 } from './transaction.types'
 
@@ -19,6 +21,14 @@ const currencySchema = z.string().length(3)
 const idSchema = publicIdSchema
 const monthSchema = competenceMonthSchema
 const moneySchema = safeIntegerSchema
+
+export const transactionLocationSchema = z.object({
+  latitude: z.number().finite().min(-90).max(90),
+  longitude: z.number().finite().min(-180).max(180),
+  accuracyMeters: z.number().finite().positive().nullable(),
+  capturedAt: z.string().datetime({ offset: true }),
+  source: z.enum(['DEVICE', 'MAP_PIN']),
+}) satisfies z.ZodType<TransactionLocation>
 
 export const cursorPageSchema = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), pageInfo: pageInfoSchema })
@@ -59,7 +69,8 @@ export const transactionSchema = z.object({
   competenceMonth: monthSchema,
   settledOn: civilDateSchema.nullable(),
   sourceModule: z.string().nullable(),
-  sourcePublicId: idSchema.nullable(),
+  sourcePublicId: z.string().uuid().nullable(),
+  location: transactionLocationSchema.nullable().default(null),
   version: z.number().int().positive(),
   deletedAt: z.string().datetime().nullable(),
 }) satisfies z.ZodType<Transaction>
@@ -92,3 +103,36 @@ export const categoryPageSchema = cursorPageSchema(categorySchema) satisfies z.Z
 export const transactionPageSchema = cursorPageSchema(transactionSchema) satisfies z.ZodType<
   CursorPage<Transaction>
 >
+export const transactionMapSchema = z.object({
+  type: z.literal('FeatureCollection'),
+  features: z.array(
+    z.object({
+      type: z.literal('Feature'),
+      id: idSchema,
+      geometry: z.object({
+        type: z.literal('Point'),
+        coordinates: z.tuple([z.number(), z.number()]),
+      }),
+      properties: z.object({
+        transactionId: idSchema,
+        accountId: idSchema,
+        accountName: z.string(),
+        categoryId: idSchema.nullable(),
+        categoryName: z.string().nullable(),
+        categoryColor: z.string().nullable(),
+        description: z.string(),
+        amountCents: moneySchema.positive(),
+        currency: currencySchema,
+        occurredOn: civilDateSchema,
+        status: z.enum(['PLANNED', 'CONFIRMED', 'SETTLED']),
+        sourceModule: z.string().nullable(),
+      }),
+    }),
+  ),
+  summary: z.object({
+    transactionCount: z.number().int().nonnegative(),
+    locatedCount: z.number().int().nonnegative(),
+    unlocatedCount: z.number().int().nonnegative(),
+    locatedAmountCents: moneySchema.nonnegative(),
+  }),
+}) satisfies z.ZodType<TransactionMap>

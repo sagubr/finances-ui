@@ -19,6 +19,7 @@ import {
   statementDetailSchema,
   statementPageSchema,
   statementPaymentSchema,
+  statementReopenSchema,
 } from '../models/planning.schemas'
 import type {
   Budget,
@@ -41,6 +42,7 @@ import type {
   StatementPayment,
   StatementPaymentInput,
   StatementPurchase,
+  StatementReopen,
 } from '../models/planning.types'
 
 const idempotency = () => ({ 'idempotency-key': crypto.randomUUID() })
@@ -236,6 +238,14 @@ export const planningApi = {
     statementCloseSchema.parse(
       (
         await apiClient.post(`/statements/${statement.id}/close`, {
+          expectedVersion: statement.version,
+        })
+      ).data,
+    ),
+  reopenStatement: async (statement: Statement): Promise<StatementReopen> =>
+    statementReopenSchema.parse(
+      (
+        await apiClient.post(`/statements/${statement.id}/reopen`, {
           expectedVersion: statement.version,
         })
       ).data,

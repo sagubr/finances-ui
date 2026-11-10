@@ -5,6 +5,7 @@ import {
   categoryPageSchema,
   categorySchema,
   monthlySummarySchema,
+  transactionMapSchema,
   transactionPageSchema,
   transactionSchema,
   transferSchema,
@@ -20,6 +21,7 @@ import type {
   MonthlySummary,
   Transaction,
   TransactionFilters,
+  TransactionMap,
   Transfer,
   UpdateTransactionInput,
 } from '../models/transaction.types'
@@ -80,6 +82,12 @@ export const transactionsApi = {
       params: { ...filters, cursor, limit: filters.limit ?? 50 },
     })
     return transactionPageSchema.parse(data)
+  },
+  map: async (month: string): Promise<TransactionMap> => {
+    const { data } = await apiClient.get<TransactionMap>('/transactions/map', {
+      params: { month },
+    })
+    return transactionMapSchema.parse(data)
   },
   create: async (input: CreateTransactionInput): Promise<Transaction> => {
     const { data } = await apiClient.post<Transaction>('/transactions', input, {

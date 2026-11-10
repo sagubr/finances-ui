@@ -8,7 +8,7 @@ import * as React from 'react'
 import { Input } from './input'
 
 import { Tooltip, TooltipPanel, TooltipTrigger } from '#/components/ui/tooltip.tsx'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/useMobile'
 import { cn } from '@/lib/utils'
 import type { DateRange as DayPickerDateRange } from 'react-day-picker'
 import { Button } from './button'

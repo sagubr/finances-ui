@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { AuthLayout } from '../AuthPageShell'
+import { AuthenticationDivider, GoogleAuthenticationButton } from '../GoogleAuthenticationButton'
 
 const schema = z.object({
   email: z.string().email('Informe um e-mail válido'),
@@ -21,9 +22,10 @@ const schema = z.object({
 
 type LoginProps = {
   redirectTo?: string
+  googleAuthenticationFailed?: boolean
 }
 
-const Login = ({ redirectTo = '/' }: LoginProps) => {
+const Login = ({ redirectTo = '/', googleAuthenticationFailed = false }: LoginProps) => {
   const { authenticate } = useAuth()
   const navigate = useNavigate()
   const [isVisible, setIsVisible] = useState(false)
@@ -76,10 +78,23 @@ const Login = ({ redirectTo = '/' }: LoginProps) => {
         <p className="text-primary text-xs font-semibold tracking-[0.18em] uppercase">
           Bem-vindo de volta
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Entre na sua conta</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Entre na sua conta</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Acesse seu planejamento e acompanhe sua vida financeira com clareza.
         </p>
+      </div>
+
+      <div className="mb-5 grid gap-5">
+        {googleAuthenticationFailed && (
+          <p
+            role="alert"
+            className="border-destructive/20 bg-destructive/5 text-destructive rounded-xl border px-3 py-2 text-sm"
+          >
+            Não foi possível entrar com o Google. Tente novamente.
+          </p>
+        )}
+        <GoogleAuthenticationButton label="Entrar com o Google" />
+        <AuthenticationDivider />
       </div>
 
       <form
@@ -151,6 +166,14 @@ const Login = ({ redirectTo = '/' }: LoginProps) => {
                     </InputGroupAddon>
                   </InputGroup>
                   {isInvalid && <FieldError>{field.state.meta.errors.join(', ')}</FieldError>}
+                  <div className="text-right">
+                    <Link
+                      to="/forgot-password"
+                      className="text-muted-foreground hover:text-foreground text-xs font-medium"
+                    >
+                      Esqueci minha senha
+                    </Link>
+                  </div>
                 </Field>
               )
             }}

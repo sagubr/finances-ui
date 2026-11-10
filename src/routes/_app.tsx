@@ -18,7 +18,7 @@ function AppLayout() {
         <AppSidebar />
         <SidebarInset className="flex h-full max-w-full min-w-0 flex-col overflow-hidden">
           <AppHeader />
-          <main className="max-w-full min-w-0 flex-1 overflow-auto p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6">
+          <main className="max-w-full min-w-0 flex-1 overflow-auto p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:p-5 md:p-6">
             <div className="flex min-h-0 w-full max-w-full min-w-0 flex-1 flex-col">
               <Outlet />
             </div>

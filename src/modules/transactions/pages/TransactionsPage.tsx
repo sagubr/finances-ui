@@ -1,4 +1,6 @@
+import { DebouncedSearchField } from '@/components/DebouncedSearchField'
 import { ResourceErrorState } from '@/components/ResourceErrorState'
+import { ResourceMetricCard } from '@/components/ResourceMetricCard'
 import { TooltipButton } from '@/components/TooltipButton'
 import { ViewModeToggle } from '@/components/ViewModeToggle'
 import { Button } from '@/components/ui/button'
@@ -14,11 +16,13 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { ManagementBarContainer } from '@/components/ui/management-bar'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useResourceViewMode } from '@/hooks/use-resource-view-mode'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useTransactionViewMode } from '@/hooks/useResourceViewStore'
 import { useCompetenceMonth } from '@/modules/competence/store/competence.store'
 import { planningApi } from '@/modules/planning/api/planning.api'
 import { CardPurchaseForm } from '@/modules/planning/components/CardPurchaseForm'
 import { StatementPaymentForm } from '@/modules/planning/components/StatementPaymentForm'
+import { PlanningPage } from '@/modules/planning/pages/PlanningPage'
 import {
   cardsQuery,
   statementQuery,
@@ -30,43 +34,51 @@ import {
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { TransactionForm } from '../components/TransactionForm'
 import { TransactionList } from '../components/TransactionList'
+import { TransactionSpendingMap } from '../components/TransactionSpendingMap'
 import { TransferForm } from '../components/TransferForm'
 import type { Transaction } from '../models/transaction.types'
 import {
   accountsQueryOptions,
   categoriesQueryOptions,
   monthlySummaryQueryOptions,
+  transactionMapQueryOptions,
   transactionsQueryOptions,
 } from '../queries/transaction.queries'
 import { formatMoney } from '../utils/money'
 import { deduplicateTransferLegs } from '../utils/transaction-source'
 
-const SummaryValue = ({ label, value }: Readonly<{ label: string; value: string }>) => (
-  <div className="bg-card ring-foreground/10 min-w-0 rounded-lg px-3 py-2.5 ring-1">
-    <p className="text-muted-foreground truncate text-[11px] font-medium">{label}</p>
-    <p className="mt-1 truncate text-base font-semibold tabular-nums">{value}</p>
-  </div>
-)
-
-export const TransactionsPage = () => {
+export const TransactionsPage = ({
+  initialView = 'transactions',
+}: Readonly<{ initialView?: 'transactions' | 'recurring' }>) => {
+  const navigate = useNavigate()
   const [createOpen, setCreateOpen] = useState(false)
   const [createTarget, setCreateTarget] = useState<'ACCOUNT' | 'CARD' | 'TRANSFER'>('ACCOUNT')
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [editingCardPurchase, setEditingCardPurchase] = useState<Transaction | null>(null)
   const [payingStatement, setPayingStatement] = useState<Transaction | null>(null)
-  const [viewMode, setViewMode] = useResourceViewMode('transactions', 'list')
+  const [search, setSearch] = useState('')
+  const [viewMode, setViewMode] = useTransactionViewMode('transactions', 'list')
   const month = useCompetenceMonth()
   const readOnly = useStore(workspaceAccessStore, getActiveWorkspaceRole) === 'VIEWER'
   const currency = useStore(workspaceAccessStore, getActiveWorkspaceBaseCurrency)
-  const accounts = useQuery(accountsQueryOptions())
-  const categories = useQuery(categoriesQueryOptions())
-  const transactions = useInfiniteQuery(transactionsQueryOptions({ month }))
-  const summary = useQuery(monthlySummaryQueryOptions(month))
+  const recordsEnabled = initialView === 'transactions'
+  const accounts = useQuery({ ...accountsQueryOptions(), enabled: recordsEnabled })
+  const categories = useQuery({ ...categoriesQueryOptions(), enabled: recordsEnabled })
+  const transactions = useInfiniteQuery({
+    ...transactionsQueryOptions({ month, search: search || undefined }),
+    enabled: recordsEnabled,
+  })
+  const summary = useQuery({ ...monthlySummaryQueryOptions(month), enabled: recordsEnabled })
+  const spendingMap = useQuery({
+    ...transactionMapQueryOptions(month),
+    enabled: recordsEnabled && viewMode === 'map',
+  })
   const statement = useQuery(statementQuery(payingStatement?.sourcePublicId ?? ''))
   const cardPurchaseStatement = useQuery(statementQuery(editingCardPurchase?.sourcePublicId ?? ''))
   const cards = useQuery({ ...cardsQuery(), enabled: Boolean(editingCardPurchase) })
@@ -98,93 +110,144 @@ export const TransactionsPage = () => {
           </p>
         </div>
       </header>
-      {(accounts.isError || categories.isError) && (
-        <ResourceErrorState
-          compact
-          title="Não foi possível carregar contas e categorias"
-          error={accounts.error ?? categories.error}
-          fallbackMessage="Os lançamentos podem ser consultados, mas novos registros dependem desses dados."
-          onRetry={() => {
-            void accounts.refetch()
-            void categories.refetch()
-          }}
-          isRetrying={accounts.isFetching || categories.isFetching}
-        />
+      <Tabs
+        value={initialView}
+        onValueChange={(value) =>
+          void navigate({ to: value === 'recurring' ? '/recurring' : '/transactions' })
+        }
+      >
+        <TabsList className="grid min-h-14 w-full grid-cols-2 p-1.5">
+          <TabsTrigger value="transactions" className="min-h-11 text-base">
+            Transações
+          </TabsTrigger>
+          <TabsTrigger value="recurring" className="min-h-11 text-base">
+            Recorrências
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {initialView === 'transactions' ? (
+        <>
+          {(accounts.isError || categories.isError) && (
+            <ResourceErrorState
+              compact
+              title="Não foi possível carregar contas e categorias"
+              error={accounts.error ?? categories.error}
+              fallbackMessage="Os lançamentos podem ser consultados, mas novos registros dependem desses dados."
+              onRetry={() => {
+                void accounts.refetch()
+                void categories.refetch()
+              }}
+              isRetrying={accounts.isFetching || categories.isFetching}
+            />
+          )}
+          <section aria-label="Resumo da competência">
+            {summary.isPending || !currency ? (
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Carregando resumo">
+                {Array.from({ length: 4 }, (_, index) => (
+                  <Skeleton key={index} className="h-[65px] rounded-lg" />
+                ))}
+              </div>
+            ) : summary.isError ? (
+              <ResourceErrorState
+                compact
+                title="Não foi possível carregar o resumo"
+                error={summary.error}
+                fallbackMessage="Tente carregar os totais da competência novamente."
+                onRetry={() => void summary.refetch()}
+                isRetrying={summary.isFetching}
+              />
+            ) : (
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                <ResourceMetricCard
+                  label="Receitas"
+                  value={formatMoney(summary.data.incomeCents, currency)}
+                  tone="positive"
+                />
+                <ResourceMetricCard
+                  label="Despesas"
+                  value={formatMoney(summary.data.expenseCents, currency)}
+                  tone="negative"
+                />
+                <ResourceMetricCard
+                  label="Resultado"
+                  value={formatMoney(summary.data.netCents, currency)}
+                  tone={summary.data.netCents >= 0 ? 'positive' : 'negative'}
+                />
+                <ResourceMetricCard
+                  label="Faturas previstas"
+                  value={formatMoney(summary.data.plannedCardPaymentCents, currency)}
+                />
+              </div>
+            )}
+          </section>
+          <section className="space-y-4" aria-labelledby="transaction-records-title">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 id="transaction-records-title" className="font-heading text-lg font-semibold">
+                  Registros
+                </h2>
+              </div>
+              {viewMode !== 'map' && (
+                <DebouncedSearchField
+                  value={search}
+                  onValueChange={setSearch}
+                  placeholder="Buscar por descrição da transação"
+                  containerClassName="min-w-0 flex-1 sm:w-72 sm:flex-none"
+                />
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-muted-foreground text-xs">
+                {viewMode === 'map'
+                  ? `${spendingMap.data?.summary.locatedCount ?? 0} gastos localizados`
+                  : `${transactionItems.length} transações carregadas`}
+              </p>
+              <ManagementBarContainer className="shadow-sm">
+                <ViewModeToggle value={viewMode} onValueChange={setViewMode} allowMap />
+                <TooltipButton
+                  title="Nova transação"
+                  size="icon"
+                  className="size-8 shrink-0"
+                  disabled={readOnly || !hasActiveAccount}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus className="size-4" />
+                </TooltipButton>
+              </ManagementBarContainer>
+            </div>
+            {viewMode === 'map' ? (
+              <TransactionSpendingMap
+                key={month}
+                data={spendingMap.data}
+                currency={currency ?? 'BRL'}
+                isLoading={spendingMap.isLoading}
+                error={spendingMap.error}
+                isRetrying={spendingMap.isFetching}
+                onRetry={() => void spendingMap.refetch()}
+              />
+            ) : (
+              <TransactionList
+                transactions={transactionItems}
+                isLoading={transactions.isLoading}
+                error={transactions.error}
+                hasNextPage={transactions.hasNextPage}
+                isFetchingNextPage={transactions.isFetchingNextPage}
+                onLoadMore={() => void transactions.fetchNextPage()}
+                onRetry={() => void transactions.refetch()}
+                isRetrying={transactions.isFetching}
+                onCreate={() => setCreateOpen(true)}
+                canCreate={hasActiveAccount}
+                viewMode={viewMode}
+                onEdit={setEditingTransaction}
+                onEditCardPurchase={setEditingCardPurchase}
+                onPayStatement={setPayingStatement}
+              />
+            )}
+          </section>
+        </>
+      ) : (
+        <PlanningPage section="recurring" embedded />
       )}
-      <section aria-label="Resumo da competência">
-        {summary.isPending || !currency ? (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Carregando resumo">
-            {Array.from({ length: 4 }, (_, index) => (
-              <Skeleton key={index} className="h-[65px] rounded-lg" />
-            ))}
-          </div>
-        ) : summary.isError ? (
-          <ResourceErrorState
-            compact
-            title="Não foi possível carregar o resumo"
-            error={summary.error}
-            fallbackMessage="Tente carregar os totais da competência novamente."
-            onRetry={() => void summary.refetch()}
-            isRetrying={summary.isFetching}
-          />
-        ) : (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            <SummaryValue
-              label="Receitas"
-              value={formatMoney(summary.data.incomeCents, currency)}
-            />
-            <SummaryValue
-              label="Despesas"
-              value={formatMoney(summary.data.expenseCents, currency)}
-            />
-            <SummaryValue label="Resultado" value={formatMoney(summary.data.netCents, currency)} />
-            <SummaryValue
-              label="Faturas previstas"
-              value={formatMoney(summary.data.plannedCardPaymentCents, currency)}
-            />
-          </div>
-        )}
-      </section>
-      <section className="space-y-4" aria-labelledby="transaction-records-title">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 id="transaction-records-title" className="font-heading text-lg font-semibold">
-              Registros
-            </h2>
-            <p className="text-muted-foreground text-xs">
-              {transactionItems.length} transações carregadas
-            </p>
-          </div>
-          <ManagementBarContainer className="shadow-sm">
-            <ViewModeToggle value={viewMode} onValueChange={setViewMode} />
-            <TooltipButton
-              title="Nova transação"
-              size="icon"
-              className="size-8 shrink-0"
-              disabled={readOnly || !hasActiveAccount}
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="size-4" />
-            </TooltipButton>
-          </ManagementBarContainer>
-        </div>
-        <TransactionList
-          transactions={transactionItems}
-          isLoading={transactions.isLoading}
-          error={transactions.error}
-          hasNextPage={transactions.hasNextPage}
-          isFetchingNextPage={transactions.isFetchingNextPage}
-          onLoadMore={() => void transactions.fetchNextPage()}
-          onRetry={() => void transactions.refetch()}
-          isRetrying={transactions.isFetching}
-          onCreate={() => setCreateOpen(true)}
-          canCreate={hasActiveAccount}
-          viewMode={viewMode}
-          onEdit={setEditingTransaction}
-          onEditCardPurchase={setEditingCardPurchase}
-          onPayStatement={setPayingStatement}
-        />
-      </section>
       <Dialog
         open={createOpen || Boolean(editingTransaction)}
         onOpenChange={(open) => {

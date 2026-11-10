@@ -94,17 +94,22 @@ export function Calendar({
     week_number: 'size-(--cell-size) p-0 text-xs font-medium text-foreground/70/72',
     weekday: 'size-(--cell-size) p-0 text-xs font-medium text-foreground/70/72',
   }
-  const mergedClassNames: typeof defaultClassNames = Object.keys(defaultClassNames).reduce(
-    (acc, key) => {
-      const userClass = classNames?.[key as keyof typeof classNames]
-      const baseClass = defaultClassNames[key as keyof typeof defaultClassNames]
+  const mergedClassNames: React.ComponentProps<typeof DayPicker>['classNames'] = {
+    ...classNames,
+    ...Object.keys(defaultClassNames).reduce(
+      (acc, key) => {
+        const userClass = classNames?.[key as keyof typeof classNames]
+        const baseClass = defaultClassNames[key as keyof typeof defaultClassNames]
 
-      acc[key as keyof typeof defaultClassNames] = userClass ? cn(baseClass, userClass) : baseClass
+        acc[key as keyof typeof defaultClassNames] = userClass
+          ? cn(baseClass, userClass)
+          : baseClass
 
-      return acc
-    },
-    { ...defaultClassNames } as typeof defaultClassNames,
-  )
+        return acc
+      },
+      { ...defaultClassNames } as typeof defaultClassNames,
+    ),
+  }
 
   const defaultComponents = {
     Dropdown: CalendarDropdown,

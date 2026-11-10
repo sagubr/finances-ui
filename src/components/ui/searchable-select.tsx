@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -10,6 +9,7 @@ import {
 } from '@/components/ui/command'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { matchesSearchText } from '@/lib/search-text'
 import { cn } from '@/lib/utils'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -17,7 +17,8 @@ import { Check, ChevronsUpDown, Search } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 
 const VIRTUALIZATION_THRESHOLD = 1000
-const OPTION_ESTIMATED_HEIGHT = 32
+const MOBILE_OPTION_ESTIMATED_HEIGHT = 44
+const DESKTOP_OPTION_ESTIMATED_HEIGHT = 32
 
 export interface SearchableSelectOption {
   readonly value: string
@@ -65,7 +66,6 @@ export const SearchableSelect = ({
   triggerClassName,
   popoverClassName,
   size = 'default',
-  sublabelPosition = 'end',
   layout = 'inline',
   hasNextPage,
   isFetchingNextPage,
@@ -74,6 +74,7 @@ export const SearchableSelect = ({
   const [open, setOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState(0)
+  const isDesktop = useMediaQuery('(min-width: 640px)')
   const listRef = useRef<HTMLDivElement | null>(null)
   const listboxId = useId()
   const selectedOption = useMemo(
@@ -93,7 +94,8 @@ export const SearchableSelect = ({
   const virtualizer = useVirtualizer({
     count: filteredOptions.length,
     getScrollElement: () => listRef.current,
-    estimateSize: () => OPTION_ESTIMATED_HEIGHT,
+    estimateSize: () =>
+      isDesktop ? DESKTOP_OPTION_ESTIMATED_HEIGHT : MOBILE_OPTION_ESTIMATED_HEIGHT,
     overscan: 8,
   })
 
@@ -141,87 +143,30 @@ export const SearchableSelect = ({
             className={cn(
               'bg-background w-full min-w-0 justify-between overflow-hidden text-left font-normal',
               isStacked
-                ? 'h-auto min-h-9 px-3 py-1.5 text-sm'
+                ? 'h-auto min-h-11 px-3 py-2 text-base sm:min-h-9 sm:py-1.5 sm:text-sm'
                 : size === 'sm'
-                  ? 'h-7 px-2.5 text-xs'
-                  : 'h-8 px-3 text-sm',
+                  ? 'h-10 px-3 text-sm sm:h-7 sm:px-2.5 sm:text-xs'
+                  : 'h-11 px-3 text-base sm:h-8 sm:text-sm',
               !selectedOption && 'text-muted-foreground',
               triggerClassName,
             )}
           />
         }
       >
-        {isStacked ? (
-          <div className="flex min-w-0 flex-1 flex-col items-start gap-1 pr-1 text-left">
-            <span
-              className="text-foreground text-xs leading-snug font-medium break-words whitespace-normal"
-              title={selectedOption?.label ?? placeholder}
-            >
-              {selectedOption?.label ?? placeholder}
-            </span>
-            {(selectedOption?.badge || selectedOption?.sublabel) && (
-              <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[10px]">
-                {selectedOption.badge && (
-                  <Badge size="sm" variant="secondary" className="max-w-44 truncate">
-                    {selectedOption.badge}
-                  </Badge>
-                )}
-                {selectedOption.sublabel && (
-                  <Badge
-                    size="sm"
-                    variant="outline"
-                    className="max-w-56 truncate"
-                    title={selectedOption.sublabel}
-                  >
-                    {selectedOption.sublabel}
-                  </Badge>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            {selectedOption?.icon && (
-              <span className="mr-1.5 flex shrink-0 items-center">{selectedOption.icon}</span>
-            )}
-            {selectedOption?.badge && (
-              <Badge size="sm" variant="secondary" className="mr-1.5 max-w-36 shrink-0 truncate">
-                {selectedOption.badge}
-              </Badge>
-            )}
-            {selectedOption?.sublabel && sublabelPosition === 'start' && (
-              <Badge
-                size="sm"
-                variant="outline"
-                className="mr-1.5 max-w-36 shrink-0 truncate"
-                title={selectedOption.sublabel}
-              >
-                {selectedOption.sublabel}
-              </Badge>
-            )}
-            <span
-              className="min-w-0 flex-1 truncate text-xs"
-              title={selectedOption?.label ?? placeholder}
-            >
-              {selectedOption?.label ?? placeholder}
-            </span>
-            {selectedOption?.sublabel && sublabelPosition === 'end' && (
-              <Badge
-                size="sm"
-                variant="outline"
-                className="ml-1.5 max-w-36 shrink-0 truncate"
-                title={selectedOption.sublabel}
-              >
-                {selectedOption.sublabel}
-              </Badge>
-            )}
-          </>
-        )}
+        <span
+          className={cn(
+            'min-w-0 flex-1 text-left',
+            isStacked ? 'leading-snug break-words whitespace-normal' : 'truncate',
+          )}
+          title={selectedOption?.label ?? placeholder}
+        >
+          {selectedOption?.label ?? placeholder}
+        </span>
         <ChevronsUpDown className="ml-1.5 size-3.5 shrink-0 opacity-50" />
       </PopoverTrigger>
       <PopoverContent
         className={cn(
-          'w-[max(var(--anchor-width),380px)] max-w-[min(90vw,540px)] min-w-[280px] p-0 shadow-lg',
+          'w-[calc(100vw-2rem)] max-w-[540px] p-0 shadow-lg sm:w-[max(var(--anchor-width),380px)] sm:min-w-[280px]',
           popoverClassName ?? className,
         )}
         align="start"
@@ -264,7 +209,7 @@ export const SearchableSelect = ({
                     setOpen(false)
                   }
                 }}
-                className="bg-input/30 h-8 border-0 pl-8 text-xs shadow-none focus-visible:ring-0"
+                className="bg-input/30 h-11 border-0 pl-9 text-base shadow-none focus-visible:ring-0 sm:h-8 sm:pl-8 sm:text-xs"
               />
             </div>
             {filteredOptions.length === 0 ? (
@@ -300,7 +245,7 @@ export const SearchableSelect = ({
                         onMouseEnter={() => setHighlightedIndex(virtualItem.index)}
                         onClick={() => selectOption(option)}
                         className={cn(
-                          'hover:bg-accent absolute left-0 flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs disabled:pointer-events-none disabled:opacity-50',
+                          'hover:bg-accent absolute left-0 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-base disabled:pointer-events-none disabled:opacity-50 sm:min-h-8 sm:rounded-md sm:px-2.5 sm:py-1.5 sm:text-xs',
                           highlighted && 'bg-muted text-foreground',
                         )}
                         style={{ transform: `translateY(${virtualItem.start}px)` }}
@@ -311,16 +256,7 @@ export const SearchableSelect = ({
                             selected ? 'opacity-100' : 'opacity-0',
                           )}
                         />
-                        {option.icon && <span className="shrink-0">{option.icon}</span>}
                         <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                        {option.badge && (
-                          <Badge size="sm" variant="secondary">
-                            {option.badge}
-                          </Badge>
-                        )}
-                        {option.sublabel && (
-                          <span className="text-muted-foreground truncate">{option.sublabel}</span>
-                        )}
                       </button>
                     )
                   })}
@@ -330,7 +266,10 @@ export const SearchableSelect = ({
           </div>
         ) : (
           <Command className="w-full">
-            <CommandInput placeholder={searchPlaceholder} className="h-8 text-xs" />
+            <CommandInput
+              placeholder={searchPlaceholder}
+              className="h-11 text-base sm:h-8 sm:text-xs"
+            />
             <CommandList
               className="max-h-64 [scrollbar-gutter:stable] overflow-y-auto p-1"
               onScroll={handleListScroll}
@@ -349,109 +288,20 @@ export const SearchableSelect = ({
                       onSelect={() => {
                         selectOption(option)
                       }}
-                      className="hover:bg-accent flex cursor-pointer items-center justify-between rounded-md px-2.5 py-1.5 text-xs"
+                      className="hover:bg-accent flex min-h-11 cursor-pointer items-center rounded-lg px-3 py-2 text-base sm:min-h-8 sm:rounded-md sm:px-2.5 sm:py-1.5 sm:text-xs"
                     >
-                      {isStacked ? (
-                        <div className="flex min-w-0 flex-1 items-start gap-2.5 py-0.5 pr-1 text-left">
-                          <Check
-                            className={cn(
-                              'text-primary mt-0.5 size-3.5 shrink-0',
-                              selected ? 'opacity-100' : 'opacity-0',
-                            )}
-                          />
-                          {option.icon && (
-                            <span className="mt-0.5 flex shrink-0 items-center">{option.icon}</span>
-                          )}
-                          <div className="flex min-w-0 flex-1 flex-col gap-1 text-left">
-                            <span
-                              className={cn(
-                                'text-xs leading-snug break-words whitespace-normal',
-                                selected
-                                  ? 'text-primary font-semibold'
-                                  : 'text-foreground font-medium',
-                              )}
-                              title={option.label}
-                            >
-                              {option.label}
-                            </span>
-                            {(option.badge || option.sublabel) && (
-                              <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[10px]">
-                                {option.badge && (
-                                  <Badge
-                                    size="sm"
-                                    variant="secondary"
-                                    className="max-w-44 truncate"
-                                  >
-                                    {option.badge}
-                                  </Badge>
-                                )}
-                                {option.sublabel && (
-                                  <Badge
-                                    size="sm"
-                                    variant="outline"
-                                    className="max-w-56 truncate"
-                                    title={option.sublabel}
-                                  >
-                                    {option.sublabel}
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <Check
-                              className={cn(
-                                'text-primary size-3.5 shrink-0',
-                                selected ? 'opacity-100' : 'opacity-0',
-                              )}
-                            />
-                            {option.icon && (
-                              <span className="flex shrink-0 items-center">{option.icon}</span>
-                            )}
-                            {option.badge && (
-                              <Badge
-                                size="sm"
-                                variant="secondary"
-                                className="max-w-36 shrink-0 truncate"
-                              >
-                                {option.badge}
-                              </Badge>
-                            )}
-                            {option.sublabel && sublabelPosition === 'start' && (
-                              <Badge
-                                size="sm"
-                                variant="outline"
-                                className="max-w-36 shrink-0 truncate"
-                                title={option.sublabel}
-                              >
-                                {option.sublabel}
-                              </Badge>
-                            )}
-                            <span
-                              className={cn(
-                                'truncate text-xs',
-                                selected && 'text-primary font-semibold',
-                              )}
-                              title={option.label}
-                            >
-                              {option.label}
-                            </span>
-                          </div>
-                          {option.sublabel && sublabelPosition === 'end' && (
-                            <Badge
-                              size="sm"
-                              variant="outline"
-                              className="ml-2 max-w-36 shrink-0 truncate"
-                              title={option.sublabel}
-                            >
-                              {option.sublabel}
-                            </Badge>
-                          )}
-                        </>
-                      )}
+                      <Check
+                        className={cn(
+                          'text-primary size-4 shrink-0',
+                          selected ? 'opacity-100' : 'opacity-0',
+                        )}
+                      />
+                      <span
+                        className={cn('min-w-0 flex-1 truncate', selected && 'font-semibold')}
+                        title={option.label}
+                      >
+                        {option.label}
+                      </span>
                     </CommandItem>
                   )
                 })}

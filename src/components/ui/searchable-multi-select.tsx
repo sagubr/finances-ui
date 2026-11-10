@@ -101,27 +101,32 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
               disabled={disabled}
               className={cn(
                 'bg-background w-full min-w-0 justify-between overflow-hidden text-left font-normal',
-                size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-sm',
+                size === 'sm'
+                  ? 'h-10 px-3 text-sm sm:h-7 sm:px-2.5 sm:text-xs'
+                  : 'h-11 px-3 text-base sm:h-8 sm:text-sm',
                 (!selectedValues || selectedValues.length === 0) && 'text-muted-foreground',
                 triggerClassName,
               )}
             />
           }
         >
-          <span className="min-w-0 flex-1 truncate text-xs" title={formattedText ?? placeholder}>
+          <span className="min-w-0 flex-1 truncate" title={formattedText ?? placeholder}>
             {formattedText ?? placeholder}
           </span>
           <ChevronsUpDown className="ml-1.5 size-3.5 shrink-0 opacity-50" />
         </PopoverTrigger>
         <PopoverContent
           className={cn(
-            'w-[max(var(--anchor-width),340px)] max-w-[min(90vw,540px)] min-w-[220px] p-0 shadow-lg',
+            'w-[calc(100vw-2rem)] max-w-[540px] p-0 shadow-lg sm:w-[max(var(--anchor-width),340px)] sm:min-w-[220px]',
             popoverClassName,
           )}
           align="start"
         >
           <Command className="w-full">
-            <CommandInput placeholder={searchPlaceholder} className="h-8 text-xs" />
+            <CommandInput
+              placeholder={searchPlaceholder}
+              className="h-11 text-base sm:h-8 sm:text-xs"
+            />
             <CommandList className="max-h-60 overflow-y-auto p-1">
               <CommandEmpty className="text-muted-foreground py-4 text-center text-xs">
                 {emptyMessage}
@@ -135,7 +140,7 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
                       value={`${option.label} ${option.value} ${option.sublabel ?? ''}`}
                       disabled={option.disabled}
                       onSelect={() => handleToggle(option.value)}
-                      className="hover:bg-accent flex cursor-pointer items-center justify-between rounded-md px-2.5 py-1.5 text-xs"
+                      className="hover:bg-accent flex min-h-11 cursor-pointer items-center rounded-lg px-3 py-2 text-base sm:min-h-8 sm:rounded-md sm:px-2.5 sm:py-1.5 sm:text-xs"
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-2">
                         <Check
@@ -145,20 +150,12 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
                           )}
                         />
                         <span
-                          className={cn(
-                            'truncate text-xs',
-                            selected && 'text-primary font-semibold',
-                          )}
+                          className={cn('truncate', selected && 'font-semibold')}
                           title={option.label}
                         >
                           {option.label}
                         </span>
                       </div>
-                      {option.sublabel && (
-                        <span className="text-muted-foreground bg-muted/70 border-border/40 ml-2 shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase">
-                          {option.sublabel}
-                        </span>
-                      )}
                     </CommandItem>
                   )
                 })}

@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
+import { formatCentsForInput, parseNonNegativeMoneyToCents } from '@/lib/money'
 import {
   getActiveWorkspaceBaseCurrency,
   workspaceAccessStore,
@@ -14,7 +16,9 @@ import { useWealthMutation } from '../queries/wealth.queries'
 
 const assetFormSchema = z.object({
   name: z.string().trim().min(1).max(160),
-  value: z.string().regex(/^\d+([,.]\d{1,2})?$/),
+  value: z
+    .string()
+    .refine((value) => parseNonNegativeMoneyToCents(value) !== null, 'Informe um valor válido.'),
   currency: z.string().trim().length(3),
 })
 
@@ -36,13 +40,13 @@ export const AssetForm = ({
   const form = useForm({
     defaultValues: {
       name: asset?.name ?? '',
-      value: asset ? (asset.acquisitionCostCents / 100).toFixed(2).replace('.', ',') : '',
+      value: formatCentsForInput(asset?.acquisitionCostCents),
       currency: asset?.currency ?? baseCurrency ?? '',
     },
     validators: { onSubmit: assetFormSchema },
     onSubmit: async ({ value, formApi }) => {
-      const cents = Math.round(Number(value.value.replace(',', '.')) * 100)
-      if (!value.name.trim() || !Number.isSafeInteger(cents) || cents < 0) return
+      const cents = parseNonNegativeMoneyToCents(value.value)
+      if (!value.name.trim() || cents === null) return
       const input = {
         name: value.name,
         status:
@@ -84,11 +88,10 @@ export const AssetForm = ({
         {(field) => (
           <Field>
             <FieldLabel htmlFor={`asset-${field.name}`}>Custo</FieldLabel>
-            <Input
+            <MoneyInput
               id={`asset-${field.name}`}
-              inputMode="decimal"
               value={field.state.value}
-              onChange={(event) => field.handleChange(event.target.value)}
+              onValueChange={field.handleChange}
             />
           </Field>
         )}

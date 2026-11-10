@@ -6,6 +6,7 @@ import {
   comparisonReportSchema,
   exportAcceptedSchema,
   exportJobSchema,
+  monthlyCalendarSchema,
 } from '../models/report.schemas'
 import type {
   AnnualReport,
@@ -14,6 +15,7 @@ import type {
   ComparisonReport,
   ExportAccepted,
   ExportJob,
+  MonthlyCalendar,
 } from '../models/report.types'
 
 export const reportsApi = {
@@ -30,6 +32,10 @@ export const reportsApi = {
   categorySpending: async (month: string): Promise<CategorySpending> =>
     categorySpendingSchema.parse(
       (await apiClient.get('/reports/category-spending', { params: { month } })).data,
+    ),
+  monthlyCalendar: async (month: string): Promise<MonthlyCalendar> =>
+    monthlyCalendarSchema.parse(
+      (await apiClient.get('/reports/monthly-calendar', { params: { month } })).data,
     ),
   createExport: async (input: {
     report: 'TRANSACTIONS' | 'ANNUAL'

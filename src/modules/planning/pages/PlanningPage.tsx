@@ -1,8 +1,10 @@
+import { FinancialTypeBadge } from '@/components/FinancialTypeBadge'
 import {
   ResourceCollectionSkeleton,
   ResourceEmptyState,
 } from '@/components/ResourceCollectionState'
 import { ResourceErrorState } from '@/components/ResourceErrorState'
+import { ResourceMetricCard } from '@/components/ResourceMetricCard'
 import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
 import Table from '@/components/Table'
 import { civilDateColumn, competenceColumn } from '@/components/Table/columns/date.columns'
@@ -17,8 +19,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useResourceViewMode } from '@/hooks/use-resource-view-mode'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useResourceViewMode } from '@/hooks/useResourceViewStore'
 import { getDomainLabel } from '@/lib/domain-labels'
+import { cn } from '@/lib/utils'
 import { useCompetenceMonth } from '@/modules/competence/store/competence.store'
 import { formatMoney } from '@/modules/transactions/utils/money'
 import {
@@ -86,7 +90,20 @@ const previousMonth = (month: string) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
-export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>) => {
+const recurringTotal = (rules: readonly RecurringRule[], type: RecurringRule['type']) => {
+  const totals = new Map<string, number>()
+  for (const rule of rules) {
+    if (rule.pausedAt || rule.type !== type) continue
+    totals.set(rule.currency, (totals.get(rule.currency) ?? 0) + rule.amountCents)
+  }
+  const formatted = [...totals.entries()].map(([currency, total]) => formatMoney(total, currency))
+  return formatted.length > 0 ? formatted.join(' · ') : '0'
+}
+
+export const PlanningPage = ({
+  section,
+  embedded = false,
+}: Readonly<{ section: PlanningSection; embedded?: boolean }>) => {
   const navigate = useNavigate()
   const month = useCompetenceMonth()
   const budgets = useQuery({ ...budgetsQuery(month), enabled: section === 'budgets' })
@@ -204,10 +221,27 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
     () => [
       { accessorKey: 'description', header: 'Descrição', size: 320 },
       {
+        accessorKey: 'type',
+        header: 'Tipo',
+        size: 130,
+        cell: ({ row }) => <FinancialTypeBadge type={row.original.type} />,
+      },
+      {
         accessorKey: 'amountCents',
         header: 'Valor',
         size: 160,
-        cell: ({ row }) => formatMoney(row.original.amountCents, row.original.currency),
+        cell: ({ row }) => (
+          <span
+            className={
+              row.original.type === 'INCOME'
+                ? 'font-semibold text-emerald-600 dark:text-emerald-300'
+                : 'text-destructive font-semibold'
+            }
+          >
+            {row.original.type === 'INCOME' ? '+' : '−'}{' '}
+            {formatMoney(row.original.amountCents, row.original.currency)}
+          </span>
+        ),
       },
       {
         id: 'destination',
@@ -401,15 +435,43 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
     </div>
   )
   const close = () => setDialog(null)
-  const content = sectionContent[section]
+  const planningSection = section === 'installments' || section === 'budgets'
+  const content = planningSection
+    ? {
+        title: 'Parcelamentos e orçamentos',
+        description: 'Organize compras parceladas e limites planejados em um único lugar.',
+      }
+    : sectionContent[section]
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold">{content.title}</h1>
-          <p className="text-muted-foreground mt-1 text-sm">{content.description}</p>
-        </div>
-      </header>
+      {!embedded && (
+        <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
+          <div>
+            <h1 className="font-heading text-2xl font-semibold">{content.title}</h1>
+            <p className="text-muted-foreground mt-1 text-sm">{content.description}</p>
+          </div>
+        </header>
+      )}
+      {planningSection && !embedded && (
+        <Tabs
+          value={section}
+          onValueChange={(value) =>
+            void navigate({
+              to: '/installments',
+              search: { tab: value === 'budgets' ? 'budgets' : undefined },
+            })
+          }
+        >
+          <TabsList className="grid min-h-14 w-full grid-cols-2 p-1.5">
+            <TabsTrigger value="installments" className="min-h-11 text-base">
+              Parcelamentos
+            </TabsTrigger>
+            <TabsTrigger value="budgets" className="min-h-11 text-base">
+              Orçamentos
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
       {section === 'budgets' && (
         <section className="space-y-4">
           <ResourceViewToolbar
@@ -526,6 +588,37 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
       )}
       {section === 'recurring' && (
         <section className="space-y-4">
+          {recurring.isPending ? (
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Carregando resumo">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="bg-muted h-[65px] animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : recurring.data ? (
+            <div
+              className="grid grid-cols-2 gap-2 md:grid-cols-4"
+              aria-label="Resumo das recorrências"
+            >
+              <ResourceMetricCard
+                label="Receitas planejadas"
+                value={recurringTotal(recurring.data.items, 'INCOME')}
+                tone="positive"
+              />
+              <ResourceMetricCard
+                label="Despesas planejadas"
+                value={recurringTotal(recurring.data.items, 'EXPENSE')}
+                tone="negative"
+              />
+              <ResourceMetricCard
+                label="Ativas"
+                value={recurring.data.items.filter((rule) => !rule.pausedAt).length}
+              />
+              <ResourceMetricCard
+                label="Pausadas"
+                value={recurring.data.items.filter((rule) => Boolean(rule.pausedAt)).length}
+              />
+            </div>
+          ) : null}
           <ResourceViewToolbar
             count={recurring.data?.items.length ?? 0}
             label="recorrências"
@@ -561,28 +654,47 @@ export const PlanningPage = ({ section }: Readonly<{ section: PlanningSection }>
               {recurring.data?.items.map((rule) => (
                 <Card
                   key={rule.id}
-                  className="hover:border-primary/40 flex flex-col justify-between transition-all hover:shadow-xs"
+                  className={cn(
+                    'flex flex-col justify-between border-l-4 transition-all hover:shadow-xs',
+                    rule.type === 'INCOME'
+                      ? 'border-l-emerald-500 hover:border-emerald-500'
+                      : 'border-l-destructive hover:border-destructive',
+                  )}
                 >
                   <CardHeader className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground text-xs">
-                        {rule.pausedAt ? 'Pausada' : 'Ativa'}
-                      </span>
+                      <FinancialTypeBadge type={rule.type} />
                       <span className="text-muted-foreground text-[11px]">
                         {getDomainLabel(rule.frequency)}
                       </span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <Repeat2 className="text-primary mt-0.5 size-4" />
+                      <Repeat2
+                        className={cn(
+                          'mt-0.5 size-4',
+                          rule.type === 'INCOME'
+                            ? 'text-emerald-600 dark:text-emerald-300'
+                            : 'text-destructive',
+                        )}
+                      />
                       <CardTitle className="truncate text-base">{rule.description}</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-semibold">
+                    <p
+                      className={cn(
+                        'text-xl font-semibold',
+                        rule.type === 'INCOME'
+                          ? 'text-emerald-600 dark:text-emerald-300'
+                          : 'text-destructive',
+                      )}
+                    >
+                      {rule.type === 'INCOME' ? '+' : '−'}{' '}
                       {formatMoney(rule.amountCents, rule.currency)}
                     </p>
                     <p className="text-muted-foreground mt-1 text-xs">
-                      Próxima em {formatDatePtBr(rule.nextOccurrenceOn)}
+                      {rule.pausedAt ? 'Pausada' : 'Ativa'} · próxima em{' '}
+                      {formatDatePtBr(rule.nextOccurrenceOn)}
                     </p>
                   </CardContent>
                   <CardFooter className="flex gap-2 border-t pt-3">

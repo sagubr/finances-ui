@@ -21,7 +21,7 @@ export const QueryReloadButton = () => {
       title="Atualizar dados"
       variant="outline"
       size="icon"
-      className="size-8 shrink-0 rounded-full"
+      className="shrink-0 rounded-full"
       disabled={isRefreshing}
       onClick={() => void refresh()}
     >

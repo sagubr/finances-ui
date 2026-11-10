@@ -71,6 +71,8 @@ export const BREADCRUMB_DICTIONARY: Record<string, string> = {
   register: 'Criar conta',
   'confirm-email': 'Confirmar e-mail',
   'resend-confirmation': 'Reenviar confirmação',
+  'forgot-password': 'Recuperar senha',
+  'reset-password': 'Redefinir senha',
   scheduled: 'Agendados',
   export: 'Exportar',
   forms: 'Formulários',

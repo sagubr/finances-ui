@@ -23,8 +23,9 @@ import {
 } from '@/components/ui/dialog'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
-import { useResourceViewMode } from '@/hooks/use-resource-view-mode'
+import { useResourceViewMode } from '@/hooks/useResourceViewStore'
 import {
   getActiveWorkspaceBaseCurrency,
   getActiveWorkspaceRole,
@@ -49,7 +50,7 @@ import {
   useUpdateAccount,
   useUpdateCategory,
 } from '../queries/transaction.queries'
-import { formatMoney, parseBalanceToCents } from '../utils/money'
+import { formatCentsForInput, formatMoney, parseBalanceToCents } from '../utils/money'
 
 const accountSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -93,9 +94,7 @@ const AccountForm = ({
       name: account?.name ?? '',
       type: account?.type ?? ('CHECKING' as Account['type']),
       currency: account?.currency ?? baseCurrency,
-      openingBalance: account
-        ? (account.openingBalanceCents / 100).toFixed(2).replace('.', ',')
-        : '0,00',
+      openingBalance: account ? formatCentsForInput(account.openingBalanceCents) : '0,00',
       openingBalanceOn: account?.openingBalanceOn ?? todayCivilDate(),
     },
     validators: { onSubmit: accountSchema },
@@ -181,13 +180,13 @@ const AccountForm = ({
             return (
               <Field data-invalid={invalid}>
                 <FieldLabel htmlFor={field.name}>Saldo inicial</FieldLabel>
-                <Input
+                <MoneyInput
                   id={field.name}
                   aria-invalid={invalid}
-                  inputMode="decimal"
+                  allowNegative
                   value={field.state.value}
                   onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
+                  onValueChange={field.handleChange}
                 />
                 {invalid && <FieldError errors={field.state.meta.errors} />}
               </Field>
@@ -339,7 +338,8 @@ const sectionMetadata: Record<
 
 export const FinancialStructurePage = ({
   section,
-}: Readonly<{ section: FinancialStructureSection }>) => {
+  embedded = false,
+}: Readonly<{ section: FinancialStructureSection; embedded?: boolean }>) => {
   const accounts = useQuery({ ...accountsQueryOptions(), enabled: section === 'accounts' })
   const categories = useQuery({
     ...categoriesQueryOptions(),
@@ -479,10 +479,12 @@ export const FinancialStructurePage = ({
   const metadata = sectionMetadata[section]
   return (
     <div className="flex flex-col gap-6">
-      <header className="border-b pb-5">
-        <h1 className="font-heading text-2xl font-semibold">{metadata.title}</h1>
-        <p className="text-muted-foreground mt-1 text-sm">{metadata.description}</p>
-      </header>
+      {!embedded && (
+        <header className="border-b pb-5">
+          <h1 className="font-heading text-2xl font-semibold">{metadata.title}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{metadata.description}</p>
+        </header>
+      )}
       {section === 'accounts' && (
         <section className="space-y-4">
           <ResourceViewToolbar

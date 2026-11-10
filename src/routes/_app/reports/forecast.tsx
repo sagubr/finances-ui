@@ -1,6 +1,7 @@
-import { ReportsPage } from '@/modules/reports/pages/ReportsPage'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/_app/reports/forecast')({
-  component: () => <ReportsPage section="forecast" />,
+  beforeLoad: () => {
+    throw redirect({ to: '/reports', search: { tab: 'forecast' } })
+  },
 })

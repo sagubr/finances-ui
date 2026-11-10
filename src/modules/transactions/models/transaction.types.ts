@@ -40,6 +40,13 @@ export type CreateCategoryInput = Readonly<{
 
 export type TransactionStatus = 'PLANNED' | 'CONFIRMED' | 'SETTLED'
 export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'CARD_PAYMENT' | 'INVESTMENT'
+export type TransactionLocation = Readonly<{
+  latitude: number
+  longitude: number
+  accuracyMeters: number | null
+  capturedAt: string
+  source: 'DEVICE' | 'MAP_PIN'
+}>
 
 export type Transaction = Readonly<{
   id: string
@@ -55,12 +62,14 @@ export type Transaction = Readonly<{
   settledOn: string | null
   sourceModule: string | null
   sourcePublicId: string | null
+  location: TransactionLocation | null
   version: number
   deletedAt: string | null
 }>
 
 export type TransactionFilters = Readonly<{
   month: string
+  date?: string
   accountId?: string
   categoryId?: string
   type?: TransactionType
@@ -78,6 +87,7 @@ export type CreateTransactionInput = Readonly<{
   currency: string
   description: string
   occurredOn: string
+  location?: TransactionLocation
 }>
 export type CreateTransferInput = Readonly<{
   fromAccountId: string
@@ -104,6 +114,7 @@ export type UpdateTransactionInput = Readonly<{
   amountCents: number
   description: string
   occurredOn: string
+  location?: TransactionLocation | null
 }>
 
 export type MonthlySummary = Readonly<{
@@ -115,4 +126,35 @@ export type MonthlySummary = Readonly<{
   plannedCardPaymentCents: number
   netCents: number
   plannedNetCents: number
+}>
+
+export type TransactionMapFeatureProperties = Readonly<{
+  transactionId: string
+  accountId: string
+  accountName: string
+  categoryId: string | null
+  categoryName: string | null
+  categoryColor: string | null
+  description: string
+  amountCents: number
+  currency: string
+  occurredOn: string
+  status: TransactionStatus
+  sourceModule: string | null
+}>
+
+export type TransactionMap = Readonly<{
+  type: 'FeatureCollection'
+  features: ReadonlyArray<{
+    type: 'Feature'
+    id: string
+    geometry: { type: 'Point'; coordinates: [number, number] }
+    properties: TransactionMapFeatureProperties
+  }>
+  summary: Readonly<{
+    transactionCount: number
+    locatedCount: number
+    unlocatedCount: number
+    locatedAmountCents: number
+  }>
 }>

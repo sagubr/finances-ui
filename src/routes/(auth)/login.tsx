@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 const loginSearchSchema = z.object({
   redirect: z.string().optional(),
+  oauthError: z.literal('google').optional(),
 })
 
 export const Route = createFileRoute('/(auth)/login')({
@@ -24,5 +25,10 @@ export const Route = createFileRoute('/(auth)/login')({
 function LoginRoute() {
   const search = Route.useSearch()
 
-  return <Login redirectTo={search.redirect} />
+  return (
+    <Login
+      redirectTo={search.redirect}
+      googleAuthenticationFailed={search.oauthError === 'google'}
+    />
+  )
 }

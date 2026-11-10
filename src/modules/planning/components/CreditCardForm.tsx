@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { accountsQueryOptions } from '@/modules/transactions/queries/transaction.queries'
-import { parseMoneyToCents } from '@/modules/transactions/utils/money'
+import { formatCentsForInput, parseMoneyToCents } from '@/modules/transactions/utils/money'
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -42,7 +43,7 @@ export const CreditCardForm = ({
   const form = useForm({
     defaultValues: {
       name: card?.name ?? '',
-      limit: card ? (card.limitCents / 100).toFixed(2).replace('.', ',') : '',
+      limit: formatCentsForInput(card?.limitCents),
       closingDay: card?.closingDay ?? 5,
       dueDay: card?.dueDay ?? 12,
       paymentAccountId: card?.paymentAccountId ?? '',
@@ -93,11 +94,10 @@ export const CreditCardForm = ({
         {(field) => (
           <Field>
             <FieldLabel htmlFor={`card-${field.name}`}>Limite</FieldLabel>
-            <Input
+            <MoneyInput
               id={`card-${field.name}`}
-              inputMode="decimal"
               value={field.state.value}
-              onChange={(event) => field.handleChange(event.target.value)}
+              onValueChange={field.handleChange}
             />
           </Field>
         )}

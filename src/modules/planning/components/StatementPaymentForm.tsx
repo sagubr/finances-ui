@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { accountsQueryOptions } from '@/modules/transactions/queries/transaction.queries'
-import { parseMoneyToCents } from '@/modules/transactions/utils/money'
+import { formatCentsForInput, parseMoneyToCents } from '@/modules/transactions/utils/money'
 import { parseCivilDate, toCivilDate, todayCivilDate } from '@/utils/date'
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
@@ -46,7 +46,7 @@ export const StatementPaymentForm = ({
   const form = useForm({
     defaultValues: {
       accountId: '',
-      amount: (remainingCents / 100).toFixed(2).replace('.', ','),
+      amount: formatCentsForInput(remainingCents),
       paidOn: todayCivilDate(),
     },
     validators: { onSubmit: statementPaymentFormSchema },
@@ -120,12 +120,11 @@ export const StatementPaymentForm = ({
           return (
             <Field data-invalid={invalid}>
               <FieldLabel htmlFor="statement-payment-amount">Valor</FieldLabel>
-              <Input
+              <MoneyInput
                 id="statement-payment-amount"
-                inputMode="decimal"
                 value={field.state.value}
                 onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
+                onValueChange={field.handleChange}
               />
               {exceedsBalance ? (
                 <p className="text-destructive text-xs">O valor excede o saldo da fatura.</p>

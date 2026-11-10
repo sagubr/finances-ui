@@ -4,12 +4,14 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   accountsQueryOptions,
   categoriesQueryOptions,
 } from '@/modules/transactions/queries/transaction.queries'
-import { parseMoneyToCents } from '@/modules/transactions/utils/money'
+import { formatCentsForInput, parseMoneyToCents } from '@/modules/transactions/utils/money'
 import { workspaceAccessStore } from '@/modules/workspaces/store/workspace-access.store'
 import { formatDatePtBr, parseCivilDate, toCivilDate, todayCivilDate } from '@/utils/date'
 import { useForm } from '@tanstack/react-form'
@@ -99,7 +101,7 @@ export const RecurringForm = ({
   const form = useForm({
     defaultValues: {
       description: rule?.description ?? '',
-      amount: rule ? (rule.amountCents / 100).toFixed(2).replace('.', ',') : '',
+      amount: formatCentsForInput(rule?.amountCents),
       target: rule?.creditCardId ? ('CARD' as const) : ('ACCOUNT' as const),
       accountId: rule?.accountId ?? '',
       creditCardId: rule?.creditCardId ?? '',
@@ -196,12 +198,10 @@ export const RecurringForm = ({
         {(field) => (
           <Field>
             <FieldLabel htmlFor="rec-amount">Valor</FieldLabel>
-            <Input
+            <MoneyInput
               id="rec-amount"
-              inputMode="decimal"
-              placeholder="0,00"
               value={field.state.value}
-              onChange={(event) => field.handleChange(event.target.value)}
+              onValueChange={field.handleChange}
             />
           </Field>
         )}
@@ -211,18 +211,29 @@ export const RecurringForm = ({
           <>
             <form.Field name="type">
               {(field) => (
-                <Field>
-                  <FieldLabel htmlFor={field.name}>Tipo</FieldLabel>
-                  <SearchableSelect
-                    id={field.name}
+                <Field className="sm:col-span-2">
+                  <FieldLabel>Tipo de recorrência</FieldLabel>
+                  <Tabs
                     value={target === 'CARD' ? 'EXPENSE' : field.state.value}
-                    disabled={Boolean(rule) || target === 'CARD'}
                     onValueChange={(value) => field.handleChange(value as 'INCOME' | 'EXPENSE')}
-                    options={[
-                      { value: 'EXPENSE', label: 'Despesa' },
-                      { value: 'INCOME', label: 'Receita' },
-                    ]}
-                  />
+                  >
+                    <TabsList className="grid min-h-14 w-full grid-cols-2 p-1.5">
+                      <TabsTrigger
+                        value="EXPENSE"
+                        className="data-active:bg-destructive/10 data-active:text-destructive min-h-11 text-base"
+                        disabled={Boolean(rule)}
+                      >
+                        Despesa
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="INCOME"
+                        className="min-h-11 text-base data-active:bg-emerald-500/10 data-active:text-emerald-700 dark:data-active:text-emerald-300"
+                        disabled={Boolean(rule) || target === 'CARD'}
+                      >
+                        Receita
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                 </Field>
               )}
             </form.Field>

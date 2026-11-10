@@ -40,8 +40,8 @@ const toggleVariants = cva(
 )
 
 interface ToggleGroupProps {
-  value: 'grid' | 'list'
-  onValueChange: (val: 'grid' | 'list') => void
+  value: string
+  onValueChange: (val: string) => void
   variant?: 'default' | 'outline'
   size?: 'default' | 'sm' | 'xs'
   className?: string
@@ -59,7 +59,7 @@ function ToggleGroup({
 }: ToggleGroupProps) {
   const handleValueChange = (newVal: string[]) => {
     if (newVal.length > 0) {
-      onValueChange(newVal[0] as 'grid' | 'list')
+      onValueChange(newVal[0])
     }
   }
 
@@ -79,7 +79,7 @@ function ToggleGroup({
           variant,
           size,
           value,
-          onChange: (val) => onValueChange(val as 'grid' | 'list'),
+          onChange: onValueChange,
         }}
       >
         {children}

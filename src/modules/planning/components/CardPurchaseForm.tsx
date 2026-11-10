@@ -5,12 +5,16 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
+import { TransactionLocationField } from '@/modules/transactions/components/TransactionLocationField'
+import type { TransactionLocation } from '@/modules/transactions/models/transaction.types'
 import { categoriesQueryOptions } from '@/modules/transactions/queries/transaction.queries'
-import { parseMoneyToCents } from '@/modules/transactions/utils/money'
+import { formatCentsForInput, parseMoneyToCents } from '@/modules/transactions/utils/money'
 import { parseCivilDate, toCivilDate, todayCivilDate } from '@/utils/date'
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { z } from 'zod'
 import type { CreditCard, StatementPurchase } from '../models/planning.types'
 import {
@@ -50,6 +54,7 @@ export const CardPurchaseForm = ({
   )
   const mutation = useCreateCardPurchase()
   const updateMutation = useUpdateCardPurchase()
+  const [location, setLocation] = useState<TransactionLocation | null>(purchase?.location ?? null)
   const isPending = mutation.isPending || updateMutation.isPending
   const resourcesPending = categories.isPending || (!card && cards.isPending)
   const resourceError = categories.error ?? (!card ? cards.error : null)
@@ -58,7 +63,7 @@ export const CardPurchaseForm = ({
       cardId: card?.id ?? '',
       description: purchase?.description ?? '',
       categoryId: purchase?.categoryId ?? '',
-      amount: purchase ? (purchase.amountCents / 100).toFixed(2).replace('.', ',') : '',
+      amount: formatCentsForInput(purchase?.amountCents),
       occurredOn: purchase?.occurredOn ?? todayCivilDate(),
     },
     validators: { onSubmit: cardPurchaseFormSchema },
@@ -71,6 +76,7 @@ export const CardPurchaseForm = ({
         amountCents,
         description: value.description.trim(),
         occurredOn: value.occurredOn,
+        ...(location ? { location } : purchase ? { location: null } : {}),
       }
       if (purchase) await updateMutation.mutateAsync({ cardId: selectedCard.id, purchase, input })
       else await mutation.mutateAsync({ card: selectedCard, input })
@@ -156,13 +162,11 @@ export const CardPurchaseForm = ({
           return (
             <Field data-invalid={invalid}>
               <FieldLabel htmlFor="card-purchase-amount">Valor</FieldLabel>
-              <Input
+              <MoneyInput
                 id="card-purchase-amount"
-                inputMode="decimal"
-                placeholder="0,00"
                 value={field.state.value}
                 onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
+                onValueChange={field.handleChange}
               />
               {invalid && <FieldError errors={field.state.meta.errors} />}
             </Field>
@@ -181,6 +185,14 @@ export const CardPurchaseForm = ({
           </Field>
         )}
       </form.Field>
+      <div className="sm:col-span-2">
+        <TransactionLocationField
+          value={location}
+          occurredOn={form.state.values.occurredOn}
+          onChange={setLocation}
+          autoCapture={!purchase}
+        />
+      </div>
       {resourcesPending && (
         <p className="text-muted-foreground text-sm sm:col-span-2">Carregando opções…</p>
       )}

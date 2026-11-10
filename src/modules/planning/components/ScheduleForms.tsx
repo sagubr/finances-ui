@@ -4,12 +4,13 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import {
   accountsQueryOptions,
   categoriesQueryOptions,
 } from '@/modules/transactions/queries/transaction.queries'
-import { parseMoneyToCents } from '@/modules/transactions/utils/money'
+import { formatCentsForInput, parseMoneyToCents } from '@/modules/transactions/utils/money'
 import { parseCivilDate, toCivilDate, todayCivilDate } from '@/utils/date'
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
@@ -105,7 +106,7 @@ export const InstallmentForm = ({
   const form = useForm({
     defaultValues: {
       description: plan?.description ?? '',
-      amount: plan ? (plan.totalAmountCents / 100).toFixed(2).replace('.', ',') : '',
+      amount: formatCentsForInput(plan?.totalAmountCents),
       installments: plan?.installments ?? 2,
       target: plan?.creditCardId ? ('CARD' as const) : ('ACCOUNT' as const),
       accountId: plan?.accountId ?? '',
@@ -189,13 +190,12 @@ export const InstallmentForm = ({
           return (
             <Field data-invalid={invalid}>
               <FieldLabel htmlFor={`inst-${field.name}`}>Valor total</FieldLabel>
-              <Input
+              <MoneyInput
                 id={`inst-${field.name}`}
                 aria-invalid={invalid}
-                inputMode="decimal"
                 value={field.state.value}
                 onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
+                onValueChange={field.handleChange}
               />
               {invalid && <FieldError errors={field.state.meta.errors} />}
             </Field>

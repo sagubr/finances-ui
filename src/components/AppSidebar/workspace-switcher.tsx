@@ -35,7 +35,7 @@ import {
 import { useForm } from '@tanstack/react-form'
 import { useQueryClient } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
-import { Building2, Check, ChevronsUpDown, Plus } from 'lucide-react'
+import { Check, ChevronsUpDown } from 'lucide-react'
 import { useState } from 'react'
 import { z } from 'zod'
 
@@ -112,7 +112,7 @@ const CreateWorkspaceForm = ({ onSuccess }: Readonly<{ onSuccess: () => void }>)
   )
 }
 
-export function WorkspaceSwitcher() {
+export function WorkspaceSwitcher({ compact = false }: Readonly<{ compact?: boolean }>) {
   const [createOpen, setCreateOpen] = useState(false)
   const { isMobile } = useSidebar()
   const queryClient = useQueryClient()
@@ -131,6 +131,13 @@ export function WorkspaceSwitcher() {
   }
 
   if (isLoading) {
+    if (compact)
+      return (
+        <div className="flex h-11 min-w-0 items-center gap-2 sm:h-8">
+          <Skeleton className="size-9 shrink-0 rounded-xl sm:size-8 sm:rounded-lg" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+      )
     return (
       <div className="flex h-12 items-center gap-2 px-2">
         <Skeleton className="size-8 rounded-lg" />
@@ -142,68 +149,96 @@ export function WorkspaceSwitcher() {
     )
   }
 
+  const switcher = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          compact ? (
+            <button
+              type="button"
+              aria-label="Trocar espaço financeiro"
+              className="hover:bg-muted focus-visible:ring-ring/50 flex h-11 max-w-52 min-w-0 items-center gap-2 rounded-xl pr-2 outline-none focus-visible:ring-3 sm:h-8 sm:rounded-lg"
+            />
+          ) : (
+            <SidebarMenuButton
+              size="lg"
+              tooltip={activeWorkspace?.name ?? 'Criar espaço financeiro'}
+              className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
+            />
+          )
+        }
+      >
+        <img
+          src="/favicon.svg"
+          alt=""
+          aria-hidden="true"
+          className={
+            compact
+              ? 'size-9 shrink-0 rounded-xl sm:size-8 sm:rounded-lg'
+              : 'size-8 shrink-0 rounded-lg'
+          }
+        />
+        <div
+          className={
+            compact ? 'min-w-0 flex-1 text-left' : 'grid flex-1 text-left text-sm leading-tight'
+          }
+        >
+          {!compact && <span className="truncate font-semibold">Nummo</span>}
+          <span
+            className={
+              compact
+                ? 'block truncate text-sm font-semibold'
+                : 'text-foreground/70 truncate text-xs'
+            }
+          >
+            {activeWorkspace?.name ?? 'Nenhum espaço financeiro'}
+          </span>
+        </div>
+        <ChevronsUpDown className="size-4 shrink-0 opacity-60" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        className="bg-popover min-w-[min(20rem,calc(100vw-2rem))] rounded-xl p-1.5 before:hidden md:min-w-64"
+        side={compact || isMobile ? 'bottom' : 'right'}
+        align="start"
+        sideOffset={6}
+      >
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-foreground/60 px-2 py-2 text-xs">
+            Espaços financeiros
+          </DropdownMenuLabel>
+          {workspaces.map((workspace) => (
+            <DropdownMenuItem
+              key={workspace.id}
+              onClick={() => void selectWorkspace(workspace)}
+              className="min-h-11 gap-3 px-3 py-2 text-base md:min-h-9 md:text-sm"
+            >
+              <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+              {workspace.id === activeWorkspace?.id && (
+                <Check className="text-primary ml-auto size-4" />
+              )}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="min-h-11 px-3 py-2 text-base md:min-h-9 md:text-sm"
+          onClick={() => setCreateOpen(true)}
+        >
+          Adicionar espaço financeiro
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   return (
     <>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <SidebarMenuButton
-                  size="lg"
-                  tooltip={activeWorkspace?.name ?? 'Criar espaço financeiro'}
-                  className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
-                />
-              }
-            >
-              <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <Building2 className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Nummo</span>
-                <span className="text-foreground/70 truncate text-xs">
-                  {activeWorkspace?.name ?? 'Nenhum espaço financeiro'}
-                </span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="bg-popover min-w-64 rounded-lg before:hidden"
-              side={isMobile ? 'bottom' : 'right'}
-              align="start"
-              sideOffset={4}
-            >
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-foreground/60 text-xs">
-                  Áreas de trabalho
-                </DropdownMenuLabel>
-                {workspaces.map((workspace) => (
-                  <DropdownMenuItem
-                    key={workspace.id}
-                    onClick={() => void selectWorkspace(workspace)}
-                    className="gap-2 p-2"
-                  >
-                    <div className="bg-background flex size-7 items-center justify-center rounded-md border">
-                      <Building2 className="size-4" />
-                    </div>
-                    <span className="min-w-0 flex-1 truncate font-medium">{workspace.name}</span>
-                    {workspace.id === activeWorkspace?.id && (
-                      <Check className="text-primary ml-auto size-4" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 p-2" onClick={() => setCreateOpen(true)}>
-                <div className="bg-background flex size-7 items-center justify-center rounded-md border">
-                  <Plus className="size-4" />
-                </div>
-                <span className="font-medium">Adicionar espaço financeiro</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      {compact ? (
+        switcher
+      ) : (
+        <SidebarMenu>
+          <SidebarMenuItem>{switcher}</SidebarMenuItem>
+        </SidebarMenu>
+      )}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

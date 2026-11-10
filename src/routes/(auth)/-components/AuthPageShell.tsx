@@ -79,7 +79,7 @@ export const AuthPageShell = ({
   <AuthLayout headerAction={headerAction}>
     <div className="mb-7 space-y-2">
       <p className="text-primary text-xs font-semibold tracking-[0.18em] uppercase">{eyebrow}</p>
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
       <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
     </div>
 

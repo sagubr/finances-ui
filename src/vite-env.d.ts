@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_SYSTEM?: string
   /** URL base do backend de API (ex: http://localhost:3009/api/v1) */
   readonly VITE_API_URL?: string
+  /** MapLibre style URL used by the optional satellite mode. */
+  readonly VITE_MAP_STYLE_SATELLITE_URL?: string
 }
 
 interface ImportMeta {

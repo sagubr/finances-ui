@@ -3,6 +3,7 @@ const AUTH_ROUTES = [
   '/register',
   '/confirm-email',
   '/resend-confirmation',
+  '/forgot-password',
   '/reset-password',
 ]
 

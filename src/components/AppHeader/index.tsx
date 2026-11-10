@@ -3,6 +3,7 @@ import { CompetencePicker } from '@/modules/competence/components/CompetencePick
 import { Link, useLocation, useRouterState } from '@tanstack/react-router'
 import { ChevronRight, Home } from 'lucide-react'
 import React from 'react'
+import { WorkspaceSwitcher } from '../AppSidebar/workspace-switcher'
 import { ModeToggle } from '../ModeToggle'
 import { QueryReloadButton } from '../QueryReloadButton'
 import {
@@ -72,11 +73,17 @@ export const AppHeader: React.FC = React.memo(() => {
   return (
     <div className="border-border bg-background sticky top-0 z-40 w-full border-b">
       <div className="flex w-full items-center gap-4 px-4 py-3 md:px-6">
-        <div className="flex items-center gap-3">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="my-auto data-[orientation=vertical]:h-5" />
-          <Breadcrumb className="hidden sm:flex">
-            <BreadcrumbList className="text-foreground/70 flex items-center gap-1.5 text-xs">
+        <div className="flex min-w-0 items-center gap-3">
+          <SidebarTrigger className="hidden md:inline-flex" />
+          <Separator
+            orientation="vertical"
+            className="my-auto hidden data-[orientation=vertical]:h-5 md:block"
+          />
+          <div className="min-w-0 md:hidden">
+            <WorkspaceSwitcher compact />
+          </div>
+          <Breadcrumb className="hidden md:flex">
+            <BreadcrumbList className="text-foreground/70 flex items-center gap-1.5 text-sm">
               {breadcrumbItems.map((item, idx) => (
                 <React.Fragment key={idx}>
                   {idx > 0 && (
@@ -86,14 +93,14 @@ export const AppHeader: React.FC = React.memo(() => {
                   )}
                   <BreadcrumbItem className="flex items-center">
                     {item.isLast ? (
-                      <BreadcrumbPage className="text-foreground flex items-center gap-1 text-[11px] font-semibold">
+                      <BreadcrumbPage className="text-foreground flex items-center gap-1 text-sm font-semibold">
                         {item.url === '/home' && <Home className="size-3.5" />}
                         {item.label}
                       </BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink
                         render={<Link to={item.url} />}
-                        className="text-foreground/70 hover:text-foreground flex items-center gap-1 text-[11px] transition-colors"
+                        className="text-foreground/70 hover:text-foreground flex items-center gap-1 text-sm transition-colors"
                       >
                         {item.url === '/home' && <Home className="size-3.5" />}
                         {item.label}
@@ -108,7 +115,9 @@ export const AppHeader: React.FC = React.memo(() => {
 
         <div className="ml-auto flex h-full min-w-0 items-center gap-2 sm:gap-4">
           <CompetencePicker />
-          <QueryReloadButton />
+          <span className="hidden md:inline-flex">
+            <QueryReloadButton />
+          </span>
           <ModeToggle />
         </div>
         {isLoading && (

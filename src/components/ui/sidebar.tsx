@@ -18,7 +18,7 @@ import {
 } from '#/components/ui/sheet.tsx'
 import { Skeleton } from '#/components/ui/skeleton.tsx'
 import { Tooltip, TooltipPanel, TooltipProvider, TooltipTrigger } from '#/components/ui/tooltip.tsx'
-import { useIsMobile } from '#/hooks/use-mobile.ts'
+import { useIsMobile } from '#/hooks/useMobile.ts'
 import { getStrictContext } from '#/lib/get-strict-context.ts'
 import { cn } from '#/lib/utils.ts'
 import { RiSideBarLine } from '@remixicon/react'
@@ -267,7 +267,7 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
       variant="ghost"
-      size="icon-sm"
+      size="icon"
       className={cn(className)}
       onClick={(event) => {
         onClick?.(event)

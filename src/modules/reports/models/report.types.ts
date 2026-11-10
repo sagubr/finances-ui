@@ -51,6 +51,24 @@ export type CategorySpending = {
   totals: { realizedCents: number; plannedCents: number; totalCents: number }
   calculatedAt: string
 }
+export type MonthlyCalendar = {
+  month: string
+  items: {
+    date: string
+    realizedExpenseCents: number
+    plannedExpenseCents: number
+    realizedCount: number
+    plannedCount: number
+  }[]
+  totals: {
+    realizedExpenseCents: number
+    plannedExpenseCents: number
+    realizedCount: number
+    plannedCount: number
+  }
+  calculatedAt: string
+  dataVersion: number
+}
 export type ExportJob = {
   id: string
   report: 'TRANSACTIONS' | 'ANNUAL'

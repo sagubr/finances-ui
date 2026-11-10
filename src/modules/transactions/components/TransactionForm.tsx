@@ -4,21 +4,26 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Spinner } from '@/components/ui/spinner'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { parseCivilDate, toCivilDate, todayCivilDate } from '@/utils/date'
 import { useForm } from '@tanstack/react-form'
+import { useState } from 'react'
 import { z } from 'zod'
 import type {
   Account,
   Category,
   CreateTransactionInput,
   Transaction,
+  TransactionLocation,
   TransactionType,
 } from '../models/transaction.types'
 import { useCreateTransaction, useUpdateTransaction } from '../queries/transaction.queries'
 import { accountsForCurrency } from '../utils/account-selection'
-import { parseMoneyToCents } from '../utils/money'
+import { formatCentsForInput, parseMoneyToCents } from '../utils/money'
+import { TransactionLocationField } from './TransactionLocationField'
 
 type TransactionFormProps = Readonly<{
   accounts: readonly Account[]
@@ -50,34 +55,20 @@ export const TransactionForm = ({
   const createMutation = useCreateTransaction()
   const updateMutation = useUpdateTransaction()
   const mutation = transaction ? updateMutation : createMutation
+  const [location, setLocation] = useState<TransactionLocation | null>(
+    transaction?.location ?? null,
+  )
   const availableAccounts = accountsForCurrency(
     accounts.filter(({ active }) => active),
     transaction?.currency,
   )
-  const typeOptions =
-    transaction && transaction.type !== 'INCOME' && transaction.type !== 'EXPENSE'
-      ? [
-          {
-            value: transaction.type,
-            label:
-              transaction.type === 'CARD_PAYMENT'
-                ? 'Pagamento de fatura'
-                : transaction.type === 'TRANSFER'
-                  ? 'Transferência'
-                  : 'Investimento',
-          },
-        ]
-      : [
-          { value: 'EXPENSE', label: 'Despesa' },
-          { value: 'INCOME', label: 'Receita' },
-        ]
   const form = useForm({
     defaultValues: {
       accountId: transaction?.accountId ?? availableAccounts[0]?.id ?? '',
       categoryId: transaction?.categoryId ?? '',
       type: transaction?.type ?? ('EXPENSE' as TransactionType),
       status: transaction?.status ?? ('CONFIRMED' as 'PLANNED' | 'CONFIRMED' | 'SETTLED'),
-      amount: transaction ? (transaction.amountCents / 100).toFixed(2).replace('.', ',') : '',
+      amount: formatCentsForInput(transaction?.amountCents),
       description: transaction?.description ?? '',
       occurredOn: transaction?.occurredOn ?? todayCivilDate(),
     },
@@ -99,6 +90,7 @@ export const TransactionForm = ({
             amountCents,
             description: value.description.trim(),
             occurredOn: value.occurredOn,
+            location: value.type === 'EXPENSE' ? location : null,
           },
         })
         onSuccess?.()
@@ -114,9 +106,11 @@ export const TransactionForm = ({
         currency: account.currency,
         description: value.description.trim(),
         occurredOn: value.occurredOn,
+        ...(value.type === 'EXPENSE' && location ? { location } : {}),
       }
       await createMutation.mutateAsync(input)
       formApi.reset({ ...value, amount: '', description: '' })
+      setLocation(null)
       onSuccess?.()
     },
   })
@@ -131,21 +125,53 @@ export const TransactionForm = ({
         void form.handleSubmit()
       }}
     >
-      <FieldGroup className="grid gap-3 sm:grid-cols-2">
+      <FieldGroup className="grid gap-3">
         <form.Field name="type">
-          {(field) => (
-            <Field>
-              <FieldLabel htmlFor={field.name}>Tipo</FieldLabel>
-              <SearchableSelect
-                id={field.name}
-                value={field.state.value}
-                onValueChange={(value) => field.handleChange(value as TransactionType)}
-                disabled={Boolean(transaction)}
-                options={typeOptions}
-              />
-            </Field>
-          )}
+          {(field) => {
+            const standardType = field.state.value === 'EXPENSE' || field.state.value === 'INCOME'
+            return (
+              <Field>
+                <FieldLabel>Tipo de lançamento</FieldLabel>
+                {standardType ? (
+                  <Tabs
+                    value={field.state.value}
+                    onValueChange={(value) => field.handleChange(value as TransactionType)}
+                  >
+                    <TabsList className="grid min-h-14 w-full grid-cols-2 p-1.5">
+                      <TabsTrigger
+                        value="EXPENSE"
+                        className="data-active:bg-destructive/10 data-active:text-destructive min-h-11 text-base"
+                        disabled={Boolean(transaction)}
+                      >
+                        Despesa
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="INCOME"
+                        className="min-h-11 text-base data-active:bg-emerald-500/10 data-active:text-emerald-700 dark:data-active:text-emerald-300"
+                        disabled={Boolean(transaction)}
+                      >
+                        Receita
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                ) : (
+                  <Input
+                    value={
+                      field.state.value === 'CARD_PAYMENT'
+                        ? 'Pagamento de fatura'
+                        : field.state.value === 'TRANSFER'
+                          ? 'Transferência'
+                          : 'Investimento'
+                    }
+                    disabled
+                  />
+                )}
+              </Field>
+            )
+          }}
         </form.Field>
+      </FieldGroup>
+      <FieldGroup className="grid gap-3">
         <form.Field name="status">
           {(field) => (
             <Field>
@@ -214,13 +240,11 @@ export const TransactionForm = ({
             return (
               <Field data-invalid={isInvalid}>
                 <FieldLabel htmlFor={field.name}>Valor</FieldLabel>
-                <Input
+                <MoneyInput
                   id={field.name}
-                  inputMode="decimal"
-                  placeholder="0,00"
                   value={field.state.value}
                   onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
+                  onValueChange={field.handleChange}
                 />
                 {isInvalid && <FieldError errors={field.state.meta.errors} />}
               </Field>
@@ -258,6 +282,18 @@ export const TransactionForm = ({
           )
         }}
       </form.Field>
+      <form.Subscribe selector={(state) => [state.values.type, state.values.occurredOn] as const}>
+        {([type, occurredOn]) =>
+          type === 'EXPENSE' ? (
+            <TransactionLocationField
+              value={location}
+              occurredOn={occurredOn}
+              onChange={setLocation}
+              autoCapture={!transaction}
+            />
+          ) : null
+        }
+      </form.Subscribe>
       {mutationMessage && <p className="text-destructive text-sm">{mutationMessage}</p>}
       <DialogFooter>
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>

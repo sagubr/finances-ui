@@ -5,6 +5,7 @@ import {
   publicIdSchema,
   safeIntegerSchema,
 } from '@/api/contract.schemas'
+import { transactionLocationSchema } from '@/modules/transactions/models/transaction.schemas'
 import { z } from 'zod'
 import type {
   Budget,
@@ -23,6 +24,7 @@ import type {
   StatementDetail,
   StatementPayment,
   StatementPurchase,
+  StatementReopen,
 } from './planning.types'
 
 const id = publicIdSchema
@@ -111,6 +113,7 @@ export const statementPurchaseSchema = z.object({
   amountCents: money.positive(),
   currency: z.string().length(3),
   occurredOn: date,
+  location: transactionLocationSchema.nullable().default(null),
   editable: z.boolean(),
   version: z.number().int().positive(),
 }) satisfies z.ZodType<StatementPurchase>
@@ -126,6 +129,7 @@ export const cardPurchaseSchema = z.object({
   competenceMonth: month,
   currency: z.string().length(3),
   status: z.literal('CONFIRMED'),
+  location: transactionLocationSchema.nullable().default(null),
   version: z.number().int().positive(),
 }) satisfies z.ZodType<CardPurchase>
 
@@ -135,6 +139,13 @@ export const statementCloseSchema = z.object({
   totalCents: money.nonnegative(),
   version: z.number().int().positive(),
 }) satisfies z.ZodType<StatementClose>
+
+export const statementReopenSchema = z.object({
+  id,
+  status: z.literal('OPEN'),
+  totalCents: money.nonnegative(),
+  version: z.number().int().positive(),
+}) satisfies z.ZodType<StatementReopen>
 
 export const statementPaymentSchema = z.object({
   id,

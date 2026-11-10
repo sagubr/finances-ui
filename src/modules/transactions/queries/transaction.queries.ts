@@ -26,6 +26,8 @@ export const transactionKeys = {
     [...transactionKeys.lists(workspaceId), filters] as const,
   summary: (workspaceId: string, month: string) =>
     [...transactionKeys.all(workspaceId), 'summary', month] as const,
+  map: (workspaceId: string, month: string) =>
+    [...transactionKeys.all(workspaceId), 'map', month] as const,
   accounts: (workspaceId: string) => ['accounts', workspaceId, 'list'] as const,
   categories: (workspaceId: string) => ['categories', workspaceId, 'list'] as const,
 }
@@ -62,6 +64,13 @@ export const monthlySummaryQueryOptions = (month: string, workspaceId = getActiv
   queryOptions({
     queryKey: transactionKeys.summary(workspaceId, month),
     queryFn: () => transactionsApi.monthlySummary(month),
+    enabled: Boolean(workspaceId && month),
+  })
+
+export const transactionMapQueryOptions = (month: string, workspaceId = getActiveWorkspaceUuid()) =>
+  queryOptions({
+    queryKey: transactionKeys.map(workspaceId, month),
+    queryFn: () => transactionsApi.map(month),
     enabled: Boolean(workspaceId && month),
   })
 
