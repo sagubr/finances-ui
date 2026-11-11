@@ -16,11 +16,12 @@ import {
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
 import { formatDatePtBr } from '@/utils/date'
+import { filterResources } from '@/utils/resource-search'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
 import type { ColumnDef } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { AnnualReportTable } from '../components/AnnualReportTable'
 import type { CashflowForecast, CategorySpending } from '../models/report.types'
 import {
@@ -65,6 +66,8 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
   const [annualView, setAnnualView] = useResourceViewMode('reports-annual', 'list')
   const [categoryView, setCategoryView] = useResourceViewMode('reports-categories', 'list')
   const [forecastView, setForecastView] = useResourceViewMode('reports-forecast', 'list')
+  const [categorySearch, setCategorySearch] = useState('')
+  const [forecastSearch, setForecastSearch] = useState('')
   const forecastColumns = useMemo<ColumnDef<CashflowForecast['items'][number]>[]>(
     () => [
       civilDateColumn<CashflowForecast['items'][number]>('date', { header: 'Data', size: 150 }),
@@ -135,6 +138,9 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
     ],
     [currency],
   )
+  const filteredCategories = filterResources(categorySpending.data?.items ?? [], categorySearch)
+  const filteredForecast = filterResources(forecast.data?.items ?? [], forecastSearch)
+
   return (
     <div className="flex flex-col gap-6">
       <header className="border-b pb-5">
@@ -232,10 +238,15 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
           </CardHeader>
           <CardContent className="space-y-4">
             <ResourceViewToolbar
-              count={categorySpending.data?.items.length ?? 0}
+              count={filteredCategories.length}
               label="categorias"
               viewMode={categoryView}
               onViewModeChange={setCategoryView}
+              search={{
+                value: categorySearch,
+                onValueChange: setCategorySearch,
+                placeholder: 'Buscar categoria',
+              }}
             />
             {categorySpending.data && currency && (
               <div className="grid gap-3 sm:grid-cols-3">
@@ -273,7 +284,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
               <div className="h-[360px] rounded-xl border">
                 <Table
                   columns={categoryColumns}
-                  data={categorySpending.data.items}
+                  data={filteredCategories}
                   getRowId={(item) => item.categoryId}
                   enableRowSelection={false}
                   shouldRenderCheckbox={false}
@@ -281,7 +292,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {categorySpending.data.items.map((item) => (
+                {filteredCategories.map((item) => (
                   <Card key={item.categoryId} size="sm">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-base">
@@ -324,10 +335,15 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
           </CardHeader>
           <CardContent className="space-y-4">
             <ResourceViewToolbar
-              count={forecast.data?.items.length ?? 0}
+              count={filteredForecast.length}
               label="dias projetados"
               viewMode={forecastView}
               onViewModeChange={setForecastView}
+              search={{
+                value: forecastSearch,
+                onValueChange: setForecastSearch,
+                placeholder: 'Buscar dia projetado',
+              }}
             />
             {forecast.data && currency && (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -369,7 +385,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
               <div className="h-[420px] rounded-xl border">
                 <Table
                   columns={forecastColumns}
-                  data={forecast.data.items}
+                  data={filteredForecast}
                   getRowId={(item) => item.date}
                   enableRowSelection={false}
                   shouldRenderCheckbox={false}
@@ -377,7 +393,7 @@ export const ReportsPage = ({ section }: Readonly<{ section: ReportSection }>) =
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {forecast.data.items.map((item) => (
+                {filteredForecast.map((item) => (
                   <Card key={item.date} size="sm">
                     <CardHeader>
                       <CardTitle className="text-base">{formatDatePtBr(item.date)}</CardTitle>

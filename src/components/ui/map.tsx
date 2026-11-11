@@ -242,6 +242,8 @@ type MapProps = {
    * to enable controlled mode where the map viewport is driven by your state.
    */
   onViewportChange?: (viewport: MapViewport) => void
+  /** Callback fired when the user selects a coordinate on the map canvas. */
+  onMapClick?: (lngLat: { lng: number; lat: number }) => void
   /** Show a loading indicator on the map */
   loading?: boolean
 } & Omit<MapLibreGL.MapOptions, 'container' | 'style'>
@@ -278,6 +280,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     projection,
     viewport,
     onViewportChange,
+    onMapClick,
     loading = false,
     ...props
   },
@@ -298,6 +301,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
 
   const onViewportChangeRef = useRef(onViewportChange)
   onViewportChangeRef.current = onViewportChange
+  const onMapClickRef = useRef(onMapClick)
+  onMapClickRef.current = onMapClick
 
   const stableStyles = useStableValue(styles)
   const isGlobe = projection?.type === 'globe'
@@ -363,6 +368,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
           if (internalUpdateRef.current) return
           onViewportChangeRef.current?.(getViewport(instance))
         })
+        instance.on('click', (event) => onMapClickRef.current?.(event.lngLat))
 
         // set values for context
         setMapLib(lib)

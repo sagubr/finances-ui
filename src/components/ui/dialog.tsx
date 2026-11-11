@@ -198,11 +198,11 @@ function DialogContent({
 
   if (!isDesktop) {
     return (
-      <DrawerContent>
+      <DrawerContent className="max-w-[calc(100dvw-1rem)] [--drawer-content-width:calc(100dvw-1rem)]">
         <div
           data-slot="dialog-content"
           className={cn(
-            'relative mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-4',
+            'relative mx-auto flex min-h-0 w-full max-w-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-4 [&_form]:min-w-0 [&_form>*]:min-w-0',
             typeof className === 'string' ? className : undefined,
           )}
           {...(props as React.ComponentProps<'div'>)}

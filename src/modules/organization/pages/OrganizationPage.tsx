@@ -25,6 +25,7 @@ import {
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
 import { formatDatePtBr, formatDateTimePtBr } from '@/utils/date'
+import { filterResources } from '@/utils/resource-search'
 import { useQuery } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -84,6 +85,7 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
   const [deletingGoal, setDeletingGoal] = useState<Goal | null>(null)
   const [editingWishlist, setEditingWishlist] = useState<WishlistItem | null>(null)
   const [deletingWishlist, setDeletingWishlist] = useState<WishlistItem | null>(null)
+  const [search, setSearch] = useState('')
   const removeActivity = useOrganizationMutation(organizationApi.removeActivity)
   const removeGoal = useOrganizationMutation(organizationApi.removeGoal)
   const removeWishlist = useOrganizationMutation(organizationApi.removeWishlistItem)
@@ -280,6 +282,11 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
   )
   const close = () => setDialog(null)
   const metadata = sectionMetadata[section]
+  const filteredGoals = filterResources(goals.data?.items ?? [], search)
+  const filteredWishlist = filterResources(wishlist.data?.items ?? [], search)
+  const filteredActivities = filterResources(activities.data?.items ?? [], search)
+  const filteredNotifications = filterResources(notifications.data?.items ?? [], search)
+
   return (
     <div className="flex flex-col gap-6">
       <header className="border-b pb-5">
@@ -289,13 +296,14 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
       {section === 'goals' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={goals.data?.items.length ?? 0}
+            count={filteredGoals.length}
             label="metas"
             viewMode={goalView}
             onViewModeChange={setGoalView}
             onCreate={() => setDialog('goal')}
             createLabel="Nova meta"
             createDisabled={readOnly}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar meta' }}
           />
           {goals.isPending ? (
             <ResourceCollectionSkeleton viewMode={goalView} />
@@ -317,10 +325,10 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
               actionDisabled={readOnly}
             />
           ) : goalView === 'list' ? (
-            table(goalColumns, goals.data?.items ?? [])
+            table(goalColumns, filteredGoals)
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {goals.data?.items.map((goal) => (
+              {filteredGoals.map((goal) => (
                 <Card
                   key={goal.id}
                   className="hover:border-primary/40 transition-all hover:shadow-xs"
@@ -375,13 +383,14 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
       {section === 'wishlist' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={wishlist.data?.items.length ?? 0}
+            count={filteredWishlist.length}
             label="desejos"
             viewMode={wishlistView}
             onViewModeChange={setWishlistView}
             onCreate={() => setDialog('wishlist')}
             createLabel="Novo desejo"
             createDisabled={readOnly}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar desejo' }}
           />
           {wishlist.isPending ? (
             <ResourceCollectionSkeleton viewMode={wishlistView} />
@@ -403,10 +412,10 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
               actionDisabled={readOnly}
             />
           ) : wishlistView === 'list' ? (
-            table(wishlistColumns, wishlist.data?.items ?? [])
+            table(wishlistColumns, filteredWishlist)
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {wishlist.data?.items.map((item) => (
+              {filteredWishlist.map((item) => (
                 <Card
                   key={item.id}
                   className="hover:border-primary/40 transition-all hover:shadow-xs"
@@ -460,13 +469,14 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
       {section === 'activities' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={activities.data?.items.length ?? 0}
+            count={filteredActivities.length}
             label="atividades"
             viewMode={activityView}
             onViewModeChange={setActivityView}
             onCreate={() => setDialog('activity')}
             createLabel="Nova atividade"
             createDisabled={readOnly}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar atividade' }}
           />
           {activities.isPending ? (
             <ResourceCollectionSkeleton viewMode={activityView} />
@@ -488,10 +498,10 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
               actionDisabled={readOnly}
             />
           ) : activityView === 'list' ? (
-            table(activityColumns, activities.data?.items ?? [])
+            table(activityColumns, filteredActivities)
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {activities.data?.items.map((activity) => (
+              {filteredActivities.map((activity) => (
                 <Card
                   key={activity.id}
                   className="hover:border-primary/40 transition-all hover:shadow-xs"
@@ -541,10 +551,11 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
       {section === 'notifications' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={notifications.data?.items.length ?? 0}
+            count={filteredNotifications.length}
             label="notificações"
             viewMode={notificationView}
             onViewModeChange={setNotificationView}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar notificação' }}
           />
           {(notifications.data?.items.some(({ readAt }) => !readAt) ?? false) && (
             <div className="flex justify-end">
@@ -575,10 +586,10 @@ export const OrganizationPage = ({ section }: Readonly<{ section: OrganizationSe
               description="Quando houver atualizações importantes, elas aparecerão aqui."
             />
           ) : notificationView === 'list' ? (
-            table(notificationColumns, notifications.data?.items ?? [])
+            table(notificationColumns, filteredNotifications)
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {notifications.data?.items.map((notification) => (
+              {filteredNotifications.map((notification) => (
                 <Card
                   key={notification.id}
                   className="hover:border-primary/40 flex flex-col justify-between transition-all hover:shadow-xs"

@@ -3,7 +3,7 @@ import {
   assetPageSchema,
   assetSchema,
   instrumentPageSchema,
-  investmentAccountPageSchema,
+  instrumentSchema,
   netWorthSchema,
   orderSchema,
   positionPageSchema,
@@ -11,24 +11,21 @@ import {
 import type {
   Asset,
   Instrument,
-  InvestmentAccount,
   InvestmentOrder,
   NetWorth,
   Page,
-  Position,
+  PositionPage,
 } from '../models/wealth.types'
 
 const idempotency = () => ({ 'idempotency-key': crypto.randomUUID() })
 export const wealthApi = {
-  accounts: async (): Promise<Page<InvestmentAccount>> =>
-    investmentAccountPageSchema.parse(
-      (await apiClient.get('/investments/accounts', { params: { limit: 200 } })).data,
-    ),
   instruments: async (q = ''): Promise<Page<Instrument>> =>
     instrumentPageSchema.parse(
       (await apiClient.get('/instruments', { params: { q: q || undefined, limit: 100 } })).data,
     ),
-  positions: async (): Promise<Page<Position>> =>
+  resolveInstrument: async (ticker: string): Promise<Instrument> =>
+    instrumentSchema.parse((await apiClient.post('/instruments/resolve', { ticker })).data),
+  positions: async (): Promise<PositionPage> =>
     positionPageSchema.parse(
       (await apiClient.get('/investments/positions', { params: { limit: 200 } })).data,
     ),
@@ -37,7 +34,7 @@ export const wealthApi = {
   netWorth: async (date?: string): Promise<NetWorth> =>
     netWorthSchema.parse((await apiClient.get('/net-worth', { params: { date } })).data),
   createOrder: async (input: {
-    investmentAccountId: string
+    accountId: string
     instrumentId: string
     side: 'BUY' | 'SELL'
     quantity: string
@@ -49,6 +46,21 @@ export const wealthApi = {
     orderSchema.parse(
       (await apiClient.post('/investments/orders', input, { headers: idempotency() })).data,
     ),
+  updateOrder: async (
+    orderId: string,
+    input: {
+      expectedVersion: number
+      quantity: string
+      unitPrice: string
+      fees: string
+      tradedOn: string
+    },
+  ): Promise<void> => {
+    await apiClient.patch(`/investments/orders/${orderId}`, input)
+  },
+  removeOrder: async (orderId: string, expectedVersion: number): Promise<void> => {
+    await apiClient.delete(`/investments/orders/${orderId}`, { data: { expectedVersion } })
+  },
   createAsset: async (input: {
     name: string
     status: 'PLANNED' | 'ACTIVE'

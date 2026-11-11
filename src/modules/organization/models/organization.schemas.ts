@@ -5,7 +5,15 @@ import {
   safeIntegerSchema,
 } from '@/api/contract.schemas'
 import { z } from 'zod'
-import type { Activity, Goal, Notification, Page, WishlistItem } from './organization.types'
+import type {
+  Activity,
+  Goal,
+  Notification,
+  Page,
+  WishlistItem,
+  WishlistPurchase,
+  WishlistSummary,
+} from './organization.types'
 
 export const activitySchema = z.object({
   id: publicIdSchema,
@@ -39,9 +47,29 @@ export const wishlistItemSchema = z.object({
   estimatedPriceCents: safeIntegerSchema.nullable(),
   currency: z.string().length(3),
   priority: z.number().int(),
+  reason: z.string().nullable(),
+  plannedOn: civilDateSchema.nullable(),
   status: z.enum(['PLANNED', 'PURCHASE_PENDING', 'PURCHASED', 'ARCHIVED']),
+  actualPriceCents: safeIntegerSchema.nullable(),
+  purchasedOn: civilDateSchema.nullable(),
+  transactionId: publicIdSchema.nullable(),
   version: z.number().int().positive(),
 }) satisfies z.ZodType<WishlistItem>
+export const wishlistSummarySchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  totals: z.array(
+    z.object({
+      currency: z.string().length(3),
+      totalCents: safeIntegerSchema.nonnegative(),
+      itemCount: z.number().int().nonnegative(),
+    }),
+  ),
+}) satisfies z.ZodType<WishlistSummary>
+export const wishlistPurchaseSchema = z.object({
+  itemId: publicIdSchema,
+  transactionId: publicIdSchema.nullable(),
+  repeated: z.boolean(),
+}) satisfies z.ZodType<WishlistPurchase>
 export const notificationSchema = z.object({
   id: publicIdSchema,
   type: z.string(),

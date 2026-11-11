@@ -1,10 +1,13 @@
 export type Page<T> = { items: T[]; pageInfo: { nextCursor: string | null; hasNextPage: boolean } }
-export type InvestmentAccount = {
-  id: string
-  name: string
-  currency: string
-  active: boolean
-  version: number
+export type PositionPage = Page<Position> & {
+  summaries: {
+    currency: string
+    invested: string
+    current: string
+    result: string
+    positionCount: number
+    quotedPositions: number
+  }[]
 }
 export type Instrument = {
   id: string
@@ -12,11 +15,12 @@ export type Instrument = {
   market: string
   name: string
   currency: string
+  logoUrl: string | null
   type: 'STOCK' | 'ETF' | 'FUND' | 'BOND' | 'CRYPTO' | 'CURRENCY' | 'OTHER'
 }
 export type InvestmentOrder = {
   id: string
-  investmentAccountId: string
+  accountId: string
   instrumentId: string
   side: 'BUY' | 'SELL'
   quantity: string
@@ -27,15 +31,31 @@ export type InvestmentOrder = {
   version: number
 }
 export type Position = {
-  investmentAccountId: string
+  accountId: string
   instrumentId: string
   symbol: string
   name: string
   quantity: string
   averageCost: string
   totalCost: string
+  currency: string
+  orderId: string | null
+  orderVersion: number | null
+  orderQuantity: string | null
+  orderUnitPrice: string | null
+  orderFees: string | null
+  orderTradedOn: string | null
+  logoUrl: string | null
   latestPrice: string | null
+  currentValue: string | null
+  unrealizedResult: string | null
+  unrealizedPercent: string | null
+  dayChange: string | null
+  dayChangePercent: string | null
+  quoteProvider: string | null
   quoteAt: string | null
+  quoteIngestedAt: string | null
+  quoteStale: boolean
 }
 export type Asset = {
   id: string

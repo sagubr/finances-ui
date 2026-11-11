@@ -1,19 +1,11 @@
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
   clearPwaInstallPrompt,
   getPwaInstallPrompt,
   subscribeToPwaInstallPrompt,
   type PwaInstallPromptEvent,
 } from '@/lib/pwa'
-import { Check, Download, Smartphone } from 'lucide-react'
+import { Download, Smartphone, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -96,50 +88,50 @@ export function PwaInstallPrompt() {
     }
   }
 
+  if (!open || !prompt) return null
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) dismiss()
-      }}
+    <aside
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="pwa-install-title"
+      aria-describedby="pwa-install-description"
+      className="bg-card text-card-foreground animate-in fade-in slide-in-from-bottom-4 fixed right-4 bottom-4 left-4 z-50 rounded-2xl border p-4 shadow-2xl duration-300 sm:left-auto sm:w-[22rem]"
     >
-      <DialogContent className="max-w-md gap-5" showCloseButton={false}>
-        <DialogHeader className="items-center text-center">
-          <div className="bg-primary/10 mb-1 flex size-16 items-center justify-center rounded-2xl">
-            <img src="/icon-192.png" alt="" className="size-12 rounded-xl" />
-          </div>
-          <DialogTitle className="text-xl">Deseja instalar esse app?</DialogTitle>
-          <DialogDescription className="max-w-sm">
-            Instale o Nummo para acessar suas finanças direto pela tela inicial, como qualquer outro
-            aplicativo.
-          </DialogDescription>
-        </DialogHeader>
+      <div className="flex items-start gap-3 pr-7">
+        <div className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
+          <Smartphone className="size-4" aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 id="pwa-install-title" className="text-sm font-semibold">
+            Deseja instalar esse app?
+          </h2>
+          <p id="pwa-install-description" className="text-muted-foreground mt-0.5 text-xs">
+            Instale o Nummo para acessar suas finanças direto pela tela inicial, como qualquer outro aplicativo.
+          </p>
+        </div>
+      </div>
 
-        <ul className="grid gap-3 text-sm">
-          <li className="flex items-center gap-3">
-            <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-              <Smartphone className="size-4" />
-            </span>
-            Acesso rápido pela tela inicial
-          </li>
-          <li className="flex items-center gap-3">
-            <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-              <Check className="size-4" />
-            </span>
-            Experiência em tela cheia, sem procurar no navegador
-          </li>
-        </ul>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        className="text-muted-foreground absolute top-3 right-3"
+        onClick={dismiss}
+        aria-label="Fechar convite de instalação"
+      >
+        <X className="size-3.5" />
+      </Button>
 
-        <DialogFooter className="sm:justify-between">
-          <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={dismiss}>
-            Agora não
-          </Button>
-          <Button type="button" className="w-full sm:w-auto" onClick={() => void install()}>
-            <Download className="size-4" />
-            Instalar aplicativo
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
+          Agora não
+        </Button>
+        <Button type="button" size="sm" className="min-w-28" onClick={() => void install()}>
+          <Download className="size-3.5" />
+          Instalar
+        </Button>
+      </div>
+    </aside>
   )
 }

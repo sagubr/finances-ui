@@ -164,6 +164,8 @@ export const planningApi = {
     cardPageSchema.parse((await apiClient.get('/credit-cards', { params: { limit: 200 } })).data),
   createCard: async (input: {
     name: string
+    brand?: NonNullable<CreditCard['brand']>
+    lastFour?: string
     paymentAccountId: string
     currency: string
     limitCents: number
@@ -178,6 +180,8 @@ export const planningApi = {
     card: CreditCard,
     input: {
       name: string
+      brand?: NonNullable<CreditCard['brand']>
+      lastFour?: string
       paymentAccountId: string
       currency: string
       limitCents: number
@@ -190,7 +194,6 @@ export const planningApi = {
       (
         await apiClient.patch(`/credit-cards/${card.id}`, {
           ...input,
-          lastFour: card.lastFour ?? undefined,
           expectedVersion: card.version,
         })
       ).data,

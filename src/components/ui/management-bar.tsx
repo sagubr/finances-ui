@@ -150,9 +150,11 @@ export function ManagementBar() {
 
 export function ManagementBarContainer({
   className,
+  contentClassName,
   children,
 }: {
   className?: string
+  contentClassName?: string
   children: React.ReactNode
 }) {
   return (
@@ -162,7 +164,11 @@ export function ManagementBarContainer({
         className,
       )}
     >
-      <motion.div layout layoutRoot className="mx-auto flex space-x-1.5">
+      <motion.div
+        layout
+        layoutRoot
+        className={cn('mx-auto flex w-full min-w-0 space-x-1.5', contentClassName)}
+      >
         {children}
       </motion.div>
     </div>

@@ -1,4 +1,3 @@
-import { DebouncedSearchField } from '@/components/DebouncedSearchField'
 import {
   ResourceCollectionSkeleton,
   ResourceEmptyState,
@@ -7,7 +6,7 @@ import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
 import Table from '@/components/Table'
 import { TooltipButton } from '@/components/TooltipButton'
-import { buttonVariants } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
@@ -28,6 +27,7 @@ import {
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
 import { formatDatePtBr } from '@/utils/date'
+import { filterResources } from '@/utils/resource-search'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
@@ -99,12 +99,14 @@ export const CardDetailsPage = ({
   const [reopeningStatement, setReopeningStatement] = useState<Statement | null>(null)
   const [editingPurchase, setEditingPurchase] = useState<StatementPurchase | null>(null)
   const [deletingPurchase, setDeletingPurchase] = useState<StatementPurchase | null>(null)
+  const [statementSearch, setStatementSearch] = useState('')
   const [statementView, setStatementView] = useResourceViewMode('card-statements', 'list')
   const [purchaseView, setPurchaseView] = useResourceViewMode('statement-purchases', 'list')
   const closeMutation = usePlanningMutation(planningApi.closeStatement)
   const reopenMutation = usePlanningMutation(planningApi.reopenStatement)
   const deletePurchase = useDeleteCardPurchase()
   const selectedStatement = orderedStatements.find(({ id }) => id === activeStatementId)
+  const searchedStatements = filterResources(filteredStatements, statementSearch)
   const purchases = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase('pt-BR')
     if (!normalizedSearch) return detail.data?.purchases.items ?? []
@@ -322,11 +324,16 @@ export const CardDetailsPage = ({
           <Card className="min-w-0 overflow-hidden">
             <CardContent className="space-y-4 p-4">
               <ResourceViewToolbar
-                count={filteredStatements.length}
+                count={searchedStatements.length}
                 label="faturas"
                 singularLabel="fatura"
                 viewMode={statementView}
                 onViewModeChange={setStatementView}
+                search={{
+                  value: statementSearch,
+                  onValueChange: setStatementSearch,
+                  placeholder: 'Buscar fatura',
+                }}
               />
               <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                 <SearchableSelect
@@ -366,7 +373,7 @@ export const CardDetailsPage = ({
                   rows={4}
                   className="h-[320px]"
                 />
-              ) : filteredStatements.length === 0 ? (
+              ) : searchedStatements.length === 0 ? (
                 <ResourceEmptyState
                   title="Nenhuma fatura encontrada"
                   description="Altere os filtros ou faça uma compra para criar a primeira fatura."
@@ -375,7 +382,7 @@ export const CardDetailsPage = ({
                 <div className="h-[320px] min-w-0 rounded-xl border">
                   <Table
                     columns={statementColumns}
-                    data={filteredStatements}
+                    data={searchedStatements}
                     getRowId={(item) => item.id}
                     enableRowSelection={false}
                     shouldRenderCheckbox={false}
@@ -384,7 +391,7 @@ export const CardDetailsPage = ({
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {filteredStatements.map((statement) => {
+                  {searchedStatements.map((statement) => {
                     const selected = statement.id === selectedTimelineStatement?.id
                     return (
                       <button
@@ -452,14 +459,11 @@ export const CardDetailsPage = ({
             singularLabel="compra"
             viewMode={purchaseView}
             onViewModeChange={setPurchaseView}
-            leading={
-              <DebouncedSearchField
-                value={search}
-                onValueChange={(value) => onFiltersChange({ search: value })}
-                placeholder="Buscar por descrição da compra"
-                containerClassName="w-full min-w-0 sm:max-w-72"
-              />
-            }
+            search={{
+              value: search,
+              onValueChange: (value) => onFiltersChange({ search: value }),
+              placeholder: 'Buscar por descrição da compra',
+            }}
             actions={
               <>
                 {selectedStatement?.status === 'OPEN' && (
@@ -475,16 +479,15 @@ export const CardDetailsPage = ({
                   </TooltipButton>
                 )}
                 {selectedStatement?.status === 'CLOSED' && selectedStatement.paidCents === 0 && (
-                  <TooltipButton
-                    title="Reabrir fatura"
+                  <Button
                     variant="outline"
-                    size="icon"
-                    className="size-8 shrink-0"
+                    size="sm"
+                    className="h-8 shrink-0 rounded-full"
                     disabled={readOnly}
                     onClick={() => setReopeningStatement(selectedStatement)}
                   >
-                    <RotateCcw />
-                  </TooltipButton>
+                    <RotateCcw className="size-4" /> Reabrir
+                  </Button>
                 )}
                 {(selectedStatement?.status === 'CLOSED' ||
                   selectedStatement?.status === 'PARTIALLY_PAID') && (

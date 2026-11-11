@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ViewMode } from '@/components/ViewModeToggle'
 import { formatMoney } from '@/modules/transactions/utils/money'
 import { formatCompetencePtBr } from '@/utils/date'
+import { filterResources } from '@/utils/resource-search'
 import type { ColumnDef } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { AnnualMonth, AnnualReport } from '../models/report.types'
 
 export const AnnualReportTable = ({
@@ -20,6 +21,8 @@ export const AnnualReportTable = ({
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
 }>) => {
+  const [search, setSearch] = useState('')
+  const filteredMonths = filterResources(report.months, search)
   const columns = useMemo<ColumnDef<AnnualMonth>[]>(
     () => [
       competenceColumn<AnnualMonth>('month', { header: 'Mês', size: 140 }),
@@ -55,16 +58,17 @@ export const AnnualReportTable = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <ResourceViewToolbar
-          count={report.months.length}
+          count={filteredMonths.length}
           label="meses"
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
+          search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar mês' }}
         />
         {viewMode === 'list' ? (
           <div className="h-[480px] rounded-xl border">
             <Table<AnnualMonth>
               columns={columns}
-              data={report.months}
+              data={filteredMonths}
               getRowId={(item) => item.month}
               enableRowSelection={false}
               shouldRenderCheckbox={false}
@@ -72,7 +76,7 @@ export const AnnualReportTable = ({
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {report.months.map((item) => (
+            {filteredMonths.map((item) => (
               <Card key={item.month} size="sm">
                 <CardHeader>
                   <CardTitle className="text-base capitalize">

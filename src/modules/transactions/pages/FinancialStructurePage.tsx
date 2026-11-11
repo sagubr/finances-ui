@@ -32,6 +32,7 @@ import {
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
 import { formatDatePtBr, parseCivilDate, toCivilDate, todayCivilDate } from '@/utils/date'
+import { filterResources } from '@/utils/resource-search'
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
@@ -353,6 +354,7 @@ export const FinancialStructurePage = ({
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null)
+  const [search, setSearch] = useState('')
   const [accountView, setAccountView] = useResourceViewMode('accounts', 'list')
   const [categoryView, setCategoryView] = useResourceViewMode('categories', 'list')
   const removeAccount = useRemoveAccount()
@@ -477,6 +479,8 @@ export const FinancialStructurePage = ({
     [isReadOnly],
   )
   const metadata = sectionMetadata[section]
+  const filteredAccounts = filterResources(accounts.data?.items ?? [], search)
+  const filteredCategories = filterResources(categories.data?.items ?? [], search)
   return (
     <div className="flex flex-col gap-6">
       {!embedded && (
@@ -488,13 +492,18 @@ export const FinancialStructurePage = ({
       {section === 'accounts' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={accounts.data?.items.length ?? 0}
+            count={filteredAccounts.length}
             label="contas cadastradas"
             viewMode={accountView}
             onViewModeChange={setAccountView}
             onCreate={() => setAccountOpen(true)}
             createLabel="Nova conta"
             createDisabled={isReadOnly}
+            search={{
+              value: search,
+              onValueChange: setSearch,
+              placeholder: 'Buscar conta',
+            }}
           />
           {accounts.isPending ? (
             <ResourceCollectionSkeleton viewMode={accountView} />
@@ -519,7 +528,7 @@ export const FinancialStructurePage = ({
             <div className="h-[520px] rounded-xl border">
               <Table<Account>
                 columns={accountColumns}
-                data={Array.from(accounts.data?.items ?? [])}
+                data={filteredAccounts}
                 getRowId={(item) => item.id}
                 enableRowSelection={false}
                 shouldRenderCheckbox={false}
@@ -527,7 +536,7 @@ export const FinancialStructurePage = ({
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {accounts.data?.items.map((account) => (
+              {filteredAccounts.map((account) => (
                 <Card
                   key={account.id}
                   className="hover:border-primary/40 flex flex-col justify-between transition-all hover:shadow-xs"
@@ -589,13 +598,18 @@ export const FinancialStructurePage = ({
       {section === 'categories' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={categories.data?.items.length ?? 0}
+            count={filteredCategories.length}
             label="categorias cadastradas"
             viewMode={categoryView}
             onViewModeChange={setCategoryView}
             onCreate={() => setCategoryOpen(true)}
             createLabel="Nova categoria"
             createDisabled={isReadOnly}
+            search={{
+              value: search,
+              onValueChange: setSearch,
+              placeholder: 'Buscar categoria',
+            }}
           />
           {categories.isPending ? (
             <ResourceCollectionSkeleton viewMode={categoryView} />
@@ -620,7 +634,7 @@ export const FinancialStructurePage = ({
             <div className="h-[520px] rounded-xl border">
               <Table<Category>
                 columns={categoryColumns}
-                data={Array.from(categories.data?.items ?? [])}
+                data={filteredCategories}
                 getRowId={(item) => item.id}
                 enableRowSelection={false}
                 shouldRenderCheckbox={false}
@@ -628,7 +642,7 @@ export const FinancialStructurePage = ({
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {categories.data?.items.map((category) => (
+              {filteredCategories.map((category) => (
                 <Card
                   key={category.id}
                   className="hover:border-primary/40 transition-all hover:shadow-xs"

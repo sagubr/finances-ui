@@ -141,7 +141,7 @@ export const SearchableSelect = ({
             size={size === 'sm' ? 'sm' : 'default'}
             disabled={disabled}
             className={cn(
-              'bg-background w-full min-w-0 justify-between overflow-hidden text-left font-normal',
+              'border-border bg-background hover:border-ring/60 hover:bg-background aria-expanded:border-ring aria-expanded:bg-background aria-expanded:ring-ring/30 w-full min-w-0 justify-between overflow-hidden text-left font-normal shadow-sm transition-[border-color,box-shadow,background-color] duration-200 hover:shadow-md aria-expanded:shadow-md aria-expanded:ring-3',
               isStacked
                 ? 'h-auto min-h-11 px-3 py-2 text-base sm:min-h-9 sm:py-1.5 sm:text-sm'
                 : size === 'sm'

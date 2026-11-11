@@ -3,6 +3,7 @@ import {
   ResourceEmptyState,
 } from '@/components/ResourceCollectionState'
 import { ResourceErrorState } from '@/components/ResourceErrorState'
+import { ResourceMetricCard } from '@/components/ResourceMetricCard'
 import { ResourceViewToolbar } from '@/components/ResourceViewToolbar'
 import Table from '@/components/Table'
 import { TooltipButton } from '@/components/TooltipButton'
@@ -23,35 +24,25 @@ import {
   getActiveWorkspaceRole,
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
+import { filterResources } from '@/utils/resource-search'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
 import type { ColumnDef } from '@tanstack/react-table'
-import { BriefcaseBusiness, ChartCandlestick, Landmark, Pencil, Trash2 } from 'lucide-react'
+import { BriefcaseBusiness, ChartCandlestick, Pencil, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { wealthApi } from '../api/wealth.api'
 import { AssetForm } from '../components/AssetForm'
 import { InvestmentOrderForm } from '../components/InvestmentForms'
-import type { Asset, InvestmentAccount, Position } from '../models/wealth.types'
-import {
-  assetsQuery,
-  investmentAccountsQuery,
-  netWorthQuery,
-  positionsQuery,
-  useWealthMutation,
-} from '../queries/wealth.queries'
+import type { Asset, Position } from '../models/wealth.types'
+import { assetsQuery, positionsQuery, useWealthMutation } from '../queries/wealth.queries'
 
-type WealthDialog = 'order' | 'asset' | null
-export type WealthSection = 'positions' | 'investment-accounts' | 'assets'
+type WealthDialog = 'order' | 'edit-order' | 'asset' | null
+export type WealthSection = 'positions' | 'assets'
 
 const sectionMetadata: Record<WealthSection, Readonly<{ title: string; description: string }>> = {
   positions: {
-    title: 'Posições',
-    description: 'Acompanhe a composição e o custo das suas posições de investimento.',
-  },
-  'investment-accounts': {
-    title: 'Contas de investimento',
-    description: 'Gerencie as contas utilizadas para registrar ordens e investimentos.',
+    title: 'Carteira de ações',
+    description: 'Acompanhe quanto você investiu, o valor atual e o resultado das suas posições.',
   },
   assets: {
     title: 'Bens',
@@ -59,48 +50,111 @@ const sectionMetadata: Record<WealthSection, Readonly<{ title: string; descripti
   },
 }
 
+const formatDecimalMoney = (value: string | number, currency: string) =>
+  new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value))
+
+const formatPercent = (value: string | number) =>
+  `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(Number(value))}%`
+
+const formatQuantity = (value: string | number) =>
+  new Intl.NumberFormat('pt-BR', {
+    maximumFractionDigits: 8,
+    minimumFractionDigits: 0,
+  }).format(Number(value))
+
 export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) => {
-  const netWorth = useQuery({ ...netWorthQuery(), enabled: section === 'positions' })
-  const accounts = useQuery({
-    ...investmentAccountsQuery(),
-    enabled: section === 'investment-accounts',
-  })
   const positions = useQuery({ ...positionsQuery(), enabled: section === 'positions' })
   const assets = useQuery({ ...assetsQuery(), enabled: section === 'assets' })
   const readOnly = useStore(workspaceAccessStore, getActiveWorkspaceRole) === 'VIEWER'
-  const navigate = useNavigate()
   const [dialog, setDialog] = useState<WealthDialog>(null)
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
   const [deletingAsset, setDeletingAsset] = useState<Asset | null>(null)
+  const [editingPosition, setEditingPosition] = useState<Position | null>(null)
+  const [deletingPosition, setDeletingPosition] = useState<Position | null>(null)
+  const [search, setSearch] = useState('')
   const removeAsset = useWealthMutation(wealthApi.removeAsset)
-  const [positionView, setPositionView] = useResourceViewMode('wealth-positions', 'list')
-  const [accountView, setAccountView] = useResourceViewMode('wealth-accounts', 'list')
-  const [assetView, setAssetView] = useResourceViewMode('wealth-assets', 'list')
-  const accountColumns = useMemo<ColumnDef<InvestmentAccount>[]>(
-    () => [
-      { accessorKey: 'name', header: 'Conta de investimento', size: 320 },
-      { accessorKey: 'currency', header: 'Moeda', size: 120 },
-      {
-        accessorKey: 'active',
-        header: 'Situação',
-        size: 140,
-        cell: ({ row }) => (row.original.active ? 'Ativa' : 'Inativa'),
-      },
-    ],
-    [],
+  const removeOrder = useWealthMutation(
+    (position: Position) =>
+      position.orderId && position.orderVersion !== null
+        ? wealthApi.removeOrder(position.orderId, position.orderVersion)
+        : Promise.reject(new Error('Esta posição não possui uma ordem editável.')),
   )
+  const [positionView, setPositionView] = useResourceViewMode('wealth-positions', 'list')
+  const [assetView, setAssetView] = useResourceViewMode('wealth-assets', 'list')
   const positionColumns = useMemo<ColumnDef<Position>[]>(
     () => [
       { accessorKey: 'symbol', header: 'Código', size: 140 },
       { accessorKey: 'name', header: 'Ativo', size: 300 },
-      { accessorKey: 'quantity', header: 'Quantidade', size: 150 },
-      { accessorKey: 'averageCost', header: 'Custo médio', size: 160 },
-      { accessorKey: 'totalCost', header: 'Custo total', size: 160 },
       {
-        accessorKey: 'latestPrice',
-        header: 'Último preço',
+        accessorKey: 'quantity',
+        header: 'Quantidade',
+        size: 150,
+        cell: ({ row }) => formatQuantity(row.original.quantity),
+      },
+      {
+        accessorKey: 'averageCost',
+        header: 'Preço médio',
         size: 160,
-        cell: ({ row }) => row.original.latestPrice ?? '—',
+        cell: ({ row }) => formatDecimalMoney(row.original.averageCost, row.original.currency),
+      },
+      {
+        accessorKey: 'currentValue',
+        header: 'Valor atual',
+        size: 160,
+        cell: ({ row }) =>
+          row.original.currentValue
+            ? formatDecimalMoney(row.original.currentValue, row.original.currency)
+            : '—',
+      },
+      {
+        accessorKey: 'unrealizedResult',
+        header: 'Resultado',
+        size: 180,
+        cell: ({ row }) => {
+          const result = row.original.unrealizedResult
+          if (!result) return '—'
+          const positive = Number(result) >= 0
+          return (
+            <span className={positive ? 'text-emerald-600' : 'text-destructive'}>
+              {formatDecimalMoney(result, row.original.currency)}
+              {row.original.unrealizedPercent
+                ? ` (${formatPercent(row.original.unrealizedPercent)})`
+                : ''}
+            </span>
+          )
+        },
+      },
+      {
+        id: 'actions',
+        header: 'Ações',
+        size: 120,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <TooltipButton
+              title="Editar posição"
+              variant="ghost"
+              size="icon"
+              disabled={readOnly || !row.original.orderId}
+              onClick={() => setEditingPosition(row.original)}
+            >
+              <Pencil />
+            </TooltipButton>
+            <TooltipButton
+              title="Excluir posição"
+              variant="ghost"
+              size="icon"
+              disabled={readOnly || !row.original.orderId}
+              onClick={() => setDeletingPosition(row.original)}
+            >
+              <Trash2 className="text-destructive" />
+            </TooltipButton>
+          </div>
+        ),
       },
     ],
     [],
@@ -153,6 +207,10 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
   )
   const close = () => setDialog(null)
   const metadata = sectionMetadata[section]
+  const filteredPositions = filterResources(positions.data?.items ?? [], search)
+  const filteredAssets = filterResources(assets.data?.items ?? [], search)
+  const portfolioSummaries = positions.data?.summaries ?? []
+
   return (
     <div className="flex flex-col gap-6">
       <header className="border-b pb-5">
@@ -160,29 +218,37 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
         <p className="text-muted-foreground mt-1 text-sm">{metadata.description}</p>
       </header>
       {section === 'positions' && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {netWorth.data?.totals.map((total) => (
-            <Card key={total.currency}>
-              <CardHeader>
-                <CardTitle className="text-sm">Patrimônio em {total.currency}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">
-                {formatMoney(total.amountCents, total.currency)}
-              </CardContent>
-            </Card>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {portfolioSummaries.map((summary) => (
+            <div key={summary.currency} className="contents">
+              <ResourceMetricCard
+                label={`Investido · ${summary.currency}`}
+                value={formatDecimalMoney(summary.invested, summary.currency)}
+              />
+              <ResourceMetricCard
+                label={`Valor atual · ${summary.currency}`}
+                value={formatDecimalMoney(summary.current, summary.currency)}
+              />
+              <ResourceMetricCard
+                label={`Resultado · ${summary.currency}`}
+                value={formatDecimalMoney(summary.result, summary.currency)}
+                tone={summary.result.startsWith('-') ? 'negative' : 'positive'}
+              />
+            </div>
           ))}
         </div>
       )}
       {section === 'positions' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={positions.data?.items.length ?? 0}
+            count={filteredPositions.length}
             label="posições"
             viewMode={positionView}
             onViewModeChange={setPositionView}
             onCreate={() => setDialog('order')}
-            createLabel="Registrar ordem"
+            createLabel="Cadastrar posição"
             createDisabled={readOnly}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar posição' }}
           />
           {positions.isPending ? (
             <ResourceCollectionSkeleton viewMode={positionView} />
@@ -199,7 +265,7 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
             <ResourceEmptyState
               title="Nenhuma posição de investimento"
               description="Registre uma ordem para começar a acompanhar sua carteira de investimentos."
-              actionLabel="Registrar ordem"
+              actionLabel="Cadastrar posição"
               onAction={() => setDialog('order')}
               actionDisabled={readOnly}
             />
@@ -207,113 +273,88 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
             <div className="h-[500px] rounded-xl border">
               <Table<Position>
                 columns={positionColumns}
-                data={positions.data?.items ?? []}
-                getRowId={(item) => `${item.investmentAccountId}-${item.instrumentId}`}
+                data={filteredPositions}
+                getRowId={(item) => `${item.accountId}-${item.instrumentId}`}
                 enableRowSelection={false}
                 shouldRenderCheckbox={false}
               />
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {positions.data?.items.map((position) => (
+              {filteredPositions.map((position) => (
                 <Card
-                  key={`${position.investmentAccountId}-${position.instrumentId}`}
+                  key={`${position.accountId}-${position.instrumentId}`}
                   className="hover:border-primary/40 transition-all hover:shadow-xs"
                 >
                   <CardHeader className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground text-xs">{position.symbol}</span>
                       <span className="text-muted-foreground text-[11px]">
-                        {position.quantity} cotas
+                        {formatQuantity(position.quantity)} cotas
                       </span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <ChartCandlestick className="text-primary mt-0.5 size-4" />
+                      <div className="bg-muted flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                        {position.logoUrl ? (
+                          <img
+                            src={position.logoUrl}
+                            alt={`Logo ${position.symbol}`}
+                            className="size-full object-contain p-1"
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          <ChartCandlestick className="text-primary size-4" />
+                        )}
+                      </div>
                       <CardTitle className="truncate text-base">{position.name}</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-semibold">{position.totalCost}</p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      Custo médio {position.averageCost}
-                      {position.latestPrice ? ` · último ${position.latestPrice}` : ''}
+                    <p className="text-xl font-semibold">
+                      {position.currentValue
+                        ? formatDecimalMoney(position.currentValue, position.currency)
+                        : 'Cotação indisponível'}
+                    </p>
+                    <p
+                      className={`mt-1 text-sm font-medium ${
+                        Number(position.unrealizedResult ?? 0) >= 0
+                          ? 'text-emerald-600'
+                          : 'text-destructive'
+                      }`}
+                    >
+                      {position.unrealizedResult
+                        ? `${formatDecimalMoney(position.unrealizedResult, position.currency)} · ${formatPercent(position.unrealizedPercent ?? 0)}`
+                        : 'Resultado indisponível'}
+                    </p>
+                    <p className="text-muted-foreground mt-2 text-xs">
+                      Preço médio {formatDecimalMoney(position.averageCost, position.currency)}
+                      {position.latestPrice
+                        ? ` · cotação ${formatDecimalMoney(position.latestPrice, position.currency)}`
+                        : ''}
                     </p>
                   </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-      {section === 'investment-accounts' && (
-        <section className="space-y-4">
-          <ResourceViewToolbar
-            count={accounts.data?.items.length ?? 0}
-            label="contas de investimento"
-            viewMode={accountView}
-            onViewModeChange={setAccountView}
-            onCreate={() => void navigate({ to: '/accounts' })}
-            createLabel="Gerenciar contas"
-          />
-          {accounts.isPending ? (
-            <ResourceCollectionSkeleton viewMode={accountView} />
-          ) : accounts.isError ? (
-            <ResourceErrorState
-              compact
-              title="Não foi possível carregar as contas de investimento"
-              error={accounts.error}
-              fallbackMessage="Tente carregar suas contas novamente."
-              onRetry={() => void accounts.refetch()}
-              isRetrying={accounts.isFetching}
-            />
-          ) : accounts.data.items.length === 0 ? (
-            <ResourceEmptyState
-              title="Nenhuma conta de investimento"
-              description="Cadastre uma conta do tipo Investimentos para registrar ordens e posições."
-              actionLabel="Gerenciar contas"
-              onAction={() => void navigate({ to: '/accounts' })}
-            />
-          ) : accountView === 'list' ? (
-            <div className="h-[500px] rounded-xl border">
-              <Table<InvestmentAccount>
-                columns={accountColumns}
-                data={accounts.data?.items ?? []}
-                getRowId={(item) => item.id}
-                enableRowSelection={false}
-                shouldRenderCheckbox={false}
-              />
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {accounts.data?.items.map((account) => (
-                <Card
-                  key={account.id}
-                  className="hover:border-primary/40 transition-all hover:shadow-xs"
-                >
-                  <CardHeader className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-xs">
-                        {account.active ? 'Ativa' : 'Inativa'}
-                      </span>
-                      <span className="text-muted-foreground text-[11px]">{account.currency}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Landmark className="text-primary mt-0.5 size-4" />
-                      <CardTitle className="text-base">{account.name}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="text-muted-foreground text-sm">
-                    Conta usada para registrar ordens e consolidar posições.
-                  </CardContent>
-                  <CardFooter className="border-t pt-3">
+                  <CardFooter className="flex gap-2 border-t pt-3">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 w-full rounded-full"
-                      onClick={() => void navigate({ to: '/accounts' })}
+                      className="h-8 flex-1 rounded-full"
+                      disabled={readOnly || !position.orderId}
+                      onClick={() => setEditingPosition(position)}
                     >
-                      Gerenciar em Contas
+                      <Pencil /> Editar
                     </Button>
+                    <TooltipButton
+                      title="Excluir posição"
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive size-8 rounded-full"
+                      disabled={readOnly || !position.orderId}
+                      onClick={() => setDeletingPosition(position)}
+                    >
+                      <Trash2 />
+                    </TooltipButton>
                   </CardFooter>
                 </Card>
               ))}
@@ -324,13 +365,14 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
       {section === 'assets' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={assets.data?.items.length ?? 0}
+            count={filteredAssets.length}
             label="bens"
             viewMode={assetView}
             onViewModeChange={setAssetView}
             onCreate={() => setDialog('asset')}
             createLabel="Novo bem"
             createDisabled={readOnly}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar bem' }}
           />
           {assets.isPending ? (
             <ResourceCollectionSkeleton viewMode={assetView} />
@@ -355,7 +397,7 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
             <div className="h-[500px] rounded-xl border">
               <Table<Asset>
                 columns={assetColumns}
-                data={assets.data?.items ?? []}
+                data={filteredAssets}
                 getRowId={(item) => item.id}
                 enableRowSelection={false}
                 shouldRenderCheckbox={false}
@@ -363,7 +405,7 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {assets.data?.items.map((asset) => (
+              {filteredAssets.map((asset) => (
                 <Card
                   key={asset.id}
                   className="hover:border-primary/40 transition-all hover:shadow-xs"
@@ -418,11 +460,37 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
       <Dialog open={dialog !== null} onOpenChange={(open) => !open && close()}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{dialog === 'order' ? 'Registrar ordem' : 'Novo bem'}</DialogTitle>
-            <DialogDescription>Preencha os dados para atualizar seu patrimônio.</DialogDescription>
+            <DialogTitle>{dialog === 'order' ? 'Cadastrar posição' : 'Novo bem'}</DialogTitle>
+            <DialogDescription>
+              {dialog === 'order'
+                ? 'Informe o ticker, a quantidade e o seu preço médio atual.'
+                : 'Preencha os dados para atualizar seu patrimônio.'}
+            </DialogDescription>
           </DialogHeader>
-          {dialog === 'order' && <InvestmentOrderForm readOnly={readOnly} onSuccess={close} />}
+          {dialog === 'order' && (
+            <InvestmentOrderForm readOnly={readOnly} onCancel={close} onSuccess={close} />
+          )}
           {dialog === 'asset' && <AssetForm readOnly={readOnly} onSuccess={close} />}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(editingPosition)}
+        onOpenChange={(open) => !open && setEditingPosition(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar posição</DialogTitle>
+            <DialogDescription>Atualize os dados da ordem desta posição.</DialogDescription>
+          </DialogHeader>
+          {editingPosition && (
+            <InvestmentOrderForm
+              key={`${editingPosition.orderId}-${editingPosition.orderVersion}`}
+              position={editingPosition}
+              readOnly={readOnly}
+              onCancel={() => setEditingPosition(null)}
+              onSuccess={() => setEditingPosition(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(editingAsset)} onOpenChange={(open) => !open && setEditingAsset(null)}>
@@ -454,6 +522,22 @@ export const WealthPage = ({ section }: Readonly<{ section: WealthSection }>) =>
           onConfirm={async () => {
             await removeAsset.mutateAsync(deletingAsset)
             setDeletingAsset(null)
+          }}
+        />
+      )}
+      {deletingPosition && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => !open && setDeletingPosition(null)}
+          title="Excluir posição?"
+          description="A última ordem desta posição será excluída e a carteira será recalculada."
+          confirmText="Excluir posição"
+          type="danger"
+          variant="destructive"
+          isPending={removeOrder.isPending}
+          onConfirm={async () => {
+            await removeOrder.mutateAsync(deletingPosition)
+            setDeletingPosition(null)
           }}
         />
       )}

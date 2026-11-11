@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { DebouncedSearchField } from './DebouncedSearchField'
 import { TooltipButton } from './TooltipButton'
 import { ManagementBarContainer } from './ui/management-bar'
 import { ViewModeToggle, type ViewMode } from './ViewModeToggle'
@@ -15,6 +16,7 @@ export const ResourceViewToolbar = ({
   createDisabled = false,
   actions,
   leading,
+  search,
 }: Readonly<{
   count: number
   label: string
@@ -26,14 +28,30 @@ export const ResourceViewToolbar = ({
   createDisabled?: boolean
   actions?: ReactNode
   leading?: ReactNode
+  search?: {
+    value: string
+    onValueChange: (value: string) => void
+    placeholder: string
+  }
 }>) => {
+  const leadingContent = search ? (
+    <DebouncedSearchField
+      value={search.value}
+      onValueChange={search.onValueChange}
+      placeholder={search.placeholder}
+      containerClassName="min-w-0 flex-1 border-0 shadow-none"
+    />
+  ) : (
+    leading
+  )
   const countLabel = (
     <p className="text-muted-foreground shrink-0 text-xs">
       {count} {count === 1 && singularLabel ? singularLabel : label}
     </p>
   )
   const managementBar = (
-    <ManagementBarContainer className="shadow-sm">
+    <ManagementBarContainer className={leadingContent ? 'w-full shadow-sm' : 'shadow-sm'}>
+      {leadingContent}
       <ViewModeToggle
         value={viewMode}
         onValueChange={(mode) => mode !== 'map' && onViewModeChange(mode)}
@@ -53,14 +71,11 @@ export const ResourceViewToolbar = ({
     </ManagementBarContainer>
   )
 
-  if (leading) {
+  if (leadingContent) {
     return (
       <div className="space-y-1">
         {countLabel}
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">{leading}</div>
-          {managementBar}
-        </div>
+        {managementBar}
       </div>
     )
   }

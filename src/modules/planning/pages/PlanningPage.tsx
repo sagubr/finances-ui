@@ -30,6 +30,7 @@ import {
   workspaceAccessStore,
 } from '@/modules/workspaces/store/workspace-access.store'
 import { formatCompetencePtBr, formatDatePtBr } from '@/utils/date'
+import { filterResources } from '@/utils/resource-search'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useStore } from '@tanstack/react-store'
@@ -44,12 +45,12 @@ import {
   Repeat2,
   Target,
   Trash2,
-  WalletCards,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { planningApi } from '../api/planning.api'
 import { BudgetForm } from '../components/BudgetForm'
 import { CreditCardForm } from '../components/CreditCardForm'
+import { CreditCardPreview } from '../components/CreditCardPreview'
 import { RecurringForm } from '../components/RecurringForm'
 import { InstallmentForm } from '../components/ScheduleForms'
 import type { Budget, CreditCard, InstallmentPlan, RecurringRule } from '../models/planning.types'
@@ -130,6 +131,7 @@ export const PlanningPage = ({
   const [deletingCard, setDeletingCard] = useState<CreditCard | null>(null)
   const [editingInstallment, setEditingInstallment] = useState<InstallmentPlan | null>(null)
   const [deletingInstallment, setDeletingInstallment] = useState<InstallmentPlan | null>(null)
+  const [search, setSearch] = useState('')
   const [budgetView, setBudgetView] = useResourceViewMode('planning-budgets', 'list')
   const [recurringView, setRecurringView] = useResourceViewMode('planning-recurring', 'list')
   const [cardView, setCardView] = useResourceViewMode('planning-cards', 'list')
@@ -392,14 +394,10 @@ export const PlanningPage = ({
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
             <TooltipButton
-              title={
-                row.original.creditCardId
-                  ? 'Parcelamentos do cartão são controlados pelas faturas'
-                  : 'Editar parcelamento'
-              }
+              title="Editar parcelamento"
               size="icon"
               variant="ghost"
-              disabled={readOnly || Boolean(row.original.creditCardId)}
+              disabled={readOnly}
               onClick={() => setEditingInstallment(row.original)}
             >
               <Pencil />
@@ -442,6 +440,11 @@ export const PlanningPage = ({
         description: 'Organize compras parceladas e limites planejados em um único lugar.',
       }
     : sectionContent[section]
+  const filteredBudgets = filterResources(budgets.data?.items ?? [], search)
+  const filteredRecurring = filterResources(recurring.data?.items ?? [], search)
+  const filteredCards = filterResources(cards.data?.items ?? [], search)
+  const filteredInstallments = filterResources(installments.data?.items ?? [], search)
+
   return (
     <div className="flex flex-col gap-6">
       {!embedded && (
@@ -475,13 +478,14 @@ export const PlanningPage = ({
       {section === 'budgets' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={budgets.data?.items.length ?? 0}
+            count={filteredBudgets.length}
             label="orçamentos"
             viewMode={budgetView}
             onViewModeChange={setBudgetView}
             onCreate={() => setDialog('budget')}
             createLabel="Novo orçamento"
             createDisabled={readOnly}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar orçamento' }}
             actions={
               <TooltipButton
                 title={`Copiar orçamentos de ${formatCompetencePtBr(previousMonth(month))}`}
@@ -515,10 +519,10 @@ export const PlanningPage = ({
               actionDisabled={readOnly}
             />
           ) : budgetView === 'list' ? (
-            table(budgetColumns, budgets.data?.items ?? [])
+            table(budgetColumns, filteredBudgets)
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {budgets.data?.items.map((budget) => (
+              {filteredBudgets.map((budget) => (
                 <Card
                   key={budget.id}
                   className="hover:border-primary/40 flex flex-col justify-between transition-all hover:shadow-xs"
@@ -609,13 +613,14 @@ export const PlanningPage = ({
             </div>
           ) : null}
           <ResourceViewToolbar
-            count={recurring.data?.items.length ?? 0}
+            count={filteredRecurring.length}
             label="recorrências"
             viewMode={recurringView}
             onViewModeChange={setRecurringView}
             onCreate={() => setDialog('recurring')}
             createLabel="Nova recorrência"
             createDisabled={readOnly}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar recorrência' }}
           />
           {recurring.isPending ? (
             <ResourceCollectionSkeleton viewMode={recurringView} />
@@ -637,10 +642,10 @@ export const PlanningPage = ({
               actionDisabled={readOnly}
             />
           ) : recurringView === 'list' ? (
-            table(recurringColumns, recurring.data?.items ?? [])
+            table(recurringColumns, filteredRecurring)
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {recurring.data?.items.map((rule) => (
+              {filteredRecurring.map((rule) => (
                 <Card
                   key={rule.id}
                   className={cn(
@@ -726,13 +731,14 @@ export const PlanningPage = ({
       {section === 'cards' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={cards.data?.items.length ?? 0}
+            count={filteredCards.length}
             label="cartões"
             viewMode={cardView}
             onViewModeChange={setCardView}
             onCreate={() => setDialog('card')}
             createLabel="Novo cartão"
             createDisabled={readOnly}
+            search={{ value: search, onValueChange: setSearch, placeholder: 'Buscar cartão' }}
           />
           {cards.isPending ? (
             <ResourceCollectionSkeleton viewMode={cardView} />
@@ -754,41 +760,29 @@ export const PlanningPage = ({
               actionDisabled={readOnly}
             />
           ) : cardView === 'list' ? (
-            table(cardColumns, cards.data?.items ?? [])
+            table(cardColumns, filteredCards)
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {cards.data?.items.map((card) => (
+              {filteredCards.map((card) => (
                 <Card
                   key={card.id}
-                  className="hover:border-primary/40 transition-all hover:shadow-xs"
+                  className="hover:ring-primary/20 overflow-hidden p-0 transition-all hover:shadow-sm hover:ring-1"
                 >
-                  <CardHeader className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-xs">
-                        {card.active ? 'Ativo' : 'Inativo'}
-                      </span>
-                      <span className="text-muted-foreground text-[11px]">
-                        {card.lastFour ? `•••• ${card.lastFour}` : card.currency}
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <WalletCards className="text-primary mt-0.5 size-4" />
-                      <CardTitle className="text-base">{card.name}</CardTitle>
-                    </div>
+                  <CardHeader className="p-3 pb-0">
+                    <CardTitle className="sr-only">{card.name}</CardTitle>
+                    <CreditCardPreview card={card} />
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-xl font-semibold">
+                  <CardContent className="px-4 py-3">
+                    <p className="text-muted-foreground text-[11px]">Limite</p>
+                    <p className="text-lg font-semibold">
                       {formatMoney(card.limitCents, card.currency)}
                     </p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      Fecha dia {card.closingDay} · vence dia {card.dueDay}
-                    </p>
                   </CardContent>
-                  <CardFooter className="flex gap-2 border-t pt-3">
+                  <CardFooter className="flex gap-1 border-t bg-transparent px-3 py-2">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      className="h-8 flex-1 rounded-full"
+                      className="text-muted-foreground hover:text-foreground h-8 flex-1 justify-start"
                       onClick={() =>
                         void navigate({ to: '/cards/$cardId', params: { cardId: card.id } })
                       }
@@ -797,9 +791,9 @@ export const PlanningPage = ({
                     </Button>
                     <TooltipButton
                       title="Editar cartão"
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
-                      className="size-8 rounded-full"
+                      className="text-muted-foreground hover:text-foreground size-8"
                       disabled={readOnly}
                       onClick={() => setEditingCard(card)}
                     >
@@ -807,9 +801,9 @@ export const PlanningPage = ({
                     </TooltipButton>
                     <TooltipButton
                       title="Excluir cartão"
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
-                      className="text-destructive size-8 rounded-full"
+                      className="text-muted-foreground hover:text-destructive size-8"
                       disabled={readOnly}
                       onClick={() => setDeletingCard(card)}
                     >
@@ -825,13 +819,18 @@ export const PlanningPage = ({
       {section === 'installments' && (
         <section className="space-y-4">
           <ResourceViewToolbar
-            count={installments.data?.items.length ?? 0}
+            count={filteredInstallments.length}
             label="parcelamentos"
             viewMode={installmentView}
             onViewModeChange={setInstallmentView}
             onCreate={() => setDialog('installment')}
             createLabel="Novo parcelamento"
             createDisabled={readOnly}
+            search={{
+              value: search,
+              onValueChange: setSearch,
+              placeholder: 'Buscar parcelamento',
+            }}
           />
           {installments.isPending ? (
             <ResourceCollectionSkeleton viewMode={installmentView} />
@@ -853,10 +852,10 @@ export const PlanningPage = ({
               actionDisabled={readOnly}
             />
           ) : installmentView === 'list' ? (
-            table(installmentColumns, installments.data?.items ?? [])
+            table(installmentColumns, filteredInstallments)
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {installments.data?.items.map((plan) => (
+              {filteredInstallments.map((plan) => (
                 <Card
                   key={plan.id}
                   className="hover:border-primary/40 transition-all hover:shadow-xs"
@@ -878,7 +877,8 @@ export const PlanningPage = ({
                       {formatMoney(plan.totalAmountCents, plan.currency)}
                     </p>
                     <p className="text-muted-foreground mt-1 text-xs">
-                      Primeira parcela em {formatDatePtBr(plan.firstDueOn)}
+                      {plan.creditCardId ? 'Compra em ' : 'Primeira parcela em '}
+                      {formatDatePtBr(plan.firstDueOn)}
                     </p>
                   </CardContent>
                   <CardFooter className="flex gap-2 border-t pt-3">
@@ -886,7 +886,7 @@ export const PlanningPage = ({
                       variant="outline"
                       size="sm"
                       className="h-8 flex-1 rounded-full"
-                      disabled={readOnly || Boolean(plan.creditCardId)}
+                      disabled={readOnly}
                       onClick={() => setEditingInstallment(plan)}
                     >
                       <Pencil /> Editar

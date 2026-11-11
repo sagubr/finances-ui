@@ -24,8 +24,36 @@ export type WishlistItem = {
   estimatedPriceCents: number | null
   currency: string
   priority: number
+  reason: string | null
+  plannedOn: string | null
   status: 'PLANNED' | 'PURCHASE_PENDING' | 'PURCHASED' | 'ARCHIVED'
+  actualPriceCents: number | null
+  purchasedOn: string | null
+  transactionId: string | null
   version: number
+}
+export type WishlistFilters = {
+  status?: WishlistItem['status']
+  from?: string
+  to?: string
+  priority?: number
+}
+export type WishlistSummary = {
+  month: string
+  totals: Array<{ currency: string; totalCents: number; itemCount: number }>
+}
+export type WishlistPurchaseInput = {
+  expectedVersion: number
+  createTransaction: boolean
+  accountId?: string
+  categoryId?: string
+  amountCents: number
+  purchasedOn: string
+}
+export type WishlistPurchase = {
+  itemId: string
+  transactionId: string | null
+  repeated: boolean
 }
 export type Notification = {
   id: string

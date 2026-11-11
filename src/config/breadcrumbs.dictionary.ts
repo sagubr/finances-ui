@@ -30,7 +30,7 @@ export const BREADCRUMB_DICTIONARY: Record<string, string> = {
   wishlist: 'Lista de desejos',
   activities: 'Atividades',
   notifications: 'Notificações',
-  positions: 'Posições',
+  positions: 'Carteira de ações',
   'investment-accounts': 'Contas de investimento',
   assets: 'Bens',
   budgets: 'Orçamentos',

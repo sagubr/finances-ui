@@ -1,7 +1,6 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { WealthPage } from '@/modules/wealth/pages/WealthPage'
+import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/_app/positions')({
-  beforeLoad: () => {
-    throw redirect({ to: '/transactions' })
-  },
+  component: () => <WealthPage section="positions" />,
 })

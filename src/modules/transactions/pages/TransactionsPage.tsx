@@ -3,6 +3,7 @@ import { ResourceErrorState } from '@/components/ResourceErrorState'
 import { ResourceMetricCard } from '@/components/ResourceMetricCard'
 import { TooltipButton } from '@/components/TooltipButton'
 import { ViewModeToggle } from '@/components/ViewModeToggle'
+import { AnimatedNumber } from '@/components/ui/animated-number'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -52,6 +53,14 @@ import {
 } from '../queries/transaction.queries'
 import { formatMoney } from '../utils/money'
 import { deduplicateTransferLegs } from '../utils/transaction-source'
+
+const AnimatedMoney = ({ cents, currency }: Readonly<{ cents: number; currency: string }>) => (
+  <AnimatedNumber
+    value={cents}
+    formatValue={(value) => formatMoney(Math.round(value), currency)}
+    springOptions={{ stiffness: 120, damping: 24, mass: 0.8 }}
+  />
+)
 
 export const TransactionsPage = ({
   initialView = 'transactions',
@@ -196,9 +205,14 @@ export const TransactionsPage = ({
           )}
           <section aria-label="Resumo da competência">
             {summary.isPending || !currency ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Carregando resumo">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Carregando resumo">
                 {Array.from({ length: 3 }, (_, index) => (
-                  <Skeleton key={index} className="h-[65px] rounded-lg" />
+                  <Skeleton
+                    key={index}
+                    className={
+                      index === 2 ? 'col-span-2 h-[65px] rounded-lg' : 'h-[65px] rounded-lg'
+                    }
+                  />
                 ))}
               </div>
             ) : summary.isError ? (
@@ -211,21 +225,22 @@ export const TransactionsPage = ({
                 isRetrying={summary.isFetching}
               />
             ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <ResourceMetricCard
                   label="Receitas"
-                  value={formatMoney(summary.data.incomeCents, currency)}
+                  value={<AnimatedMoney cents={summary.data.incomeCents} currency={currency} />}
                   tone="positive"
                 />
                 <ResourceMetricCard
                   label="Despesas"
-                  value={formatMoney(summary.data.expenseCents, currency)}
+                  value={<AnimatedMoney cents={summary.data.expenseCents} currency={currency} />}
                   tone="negative"
                 />
                 <ResourceMetricCard
                   label="Resultado"
-                  value={formatMoney(summary.data.netCents, currency)}
+                  value={<AnimatedMoney cents={summary.data.netCents} currency={currency} />}
                   tone={summary.data.netCents >= 0 ? 'positive' : 'negative'}
+                  className="col-span-2"
                 />
               </div>
             )}
@@ -236,16 +251,19 @@ export const TransactionsPage = ({
                 ? `${spendingMap.data?.summary.locatedCount ?? 0} gastos localizados`
                 : `${transactionItems.length} ${transactionItems.length === 1 ? 'transação' : 'transações'}`}
             </p>
-            <div className="flex items-center justify-between gap-3">
-              {viewMode !== 'map' && (
-                <DebouncedSearchField
-                  value={search}
-                  onValueChange={setSearch}
-                  placeholder="Buscar por descrição da transação"
-                  containerClassName="w-full min-w-0 sm:max-w-72"
-                />
-              )}
-              <ManagementBarContainer className="shadow-sm">
+            <div className="flex items-center justify-end">
+              <ManagementBarContainer
+                className={viewMode === 'map' ? 'shadow-sm' : 'w-full shadow-sm'}
+                contentClassName={viewMode === 'map' ? 'justify-end' : undefined}
+              >
+                {viewMode !== 'map' && (
+                  <DebouncedSearchField
+                    value={search}
+                    onValueChange={setSearch}
+                    placeholder="Buscar por descrição da transação"
+                    containerClassName="min-w-0 flex-1 border-0 shadow-none"
+                  />
+                )}
                 <ViewModeToggle value={viewMode} onValueChange={setViewMode} allowMap />
                 <TooltipButton
                   title="Nova transação"

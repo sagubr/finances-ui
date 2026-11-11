@@ -19,11 +19,18 @@ describe('navigation module catalog', () => {
 
   it('derives sidebar groups and mobile overflow from the same modules', () => {
     expect(NAV_GROUPS.map(({ id }) => id)).toEqual(['overview', 'finance', 'insights'])
-    expect(BOTTOM_MORE_ITEMS.map(({ id }) => id)).toEqual(['reports', 'settings'])
+    expect(BOTTOM_MORE_ITEMS.map(({ id }) => id)).toEqual([
+      'wishlist',
+      'investments',
+      'reports',
+      'settings',
+    ])
   })
 
   it('exposes every nested destination in the mobile overflow menu', () => {
     expect(BOTTOM_MORE_LINKS.map(({ id }) => id)).toEqual([
+      'wishlist',
+      'investments',
       'reports',
       'settings',
       'transaction-planning',
@@ -51,9 +58,10 @@ describe('navigation module catalog', () => {
     ])
   })
 
-  it('does not expose future objective and wealth modules', () => {
+  it('keeps future objectives hidden and exposes investments', () => {
     expect(NAVIGATION_MODULES.some(({ id }) => id === 'objectives')).toBe(false)
     expect(NAVIGATION_MODULES.some(({ id }) => id === 'wealth')).toBe(false)
+    expect(NAVIGATION_MODULES.some(({ id }) => id === 'investments')).toBe(true)
   })
 
   it('keeps report views inside their owning module', () => {

@@ -10,7 +10,19 @@ export const TransactionLocationMap = ({
   onChange: (location: TransactionLocation) => void
 }>) => (
   <div className="h-52 overflow-hidden rounded-lg border">
-    <Map center={[location.longitude, location.latitude]} zoom={16}>
+    <Map
+      center={[location.longitude, location.latitude]}
+      zoom={16}
+      onMapClick={({ lng, lat }) =>
+        onChange({
+          latitude: lat,
+          longitude: lng,
+          accuracyMeters: null,
+          capturedAt: new Date().toISOString(),
+          source: 'MAP_PIN',
+        })
+      }
+    >
       <MapMarker
         draggable
         longitude={location.longitude}
@@ -26,8 +38,12 @@ export const TransactionLocationMap = ({
         }
       >
         <MarkerContent className="cursor-move">
-          <span aria-label="Local do gasto; arraste para ajustar" role="img">
-            <MapPin className="fill-primary text-primary-foreground size-8 drop-shadow-md" />
+          <span
+            className="bg-background text-foreground ring-border flex size-9 items-center justify-center rounded-full shadow-md ring-1"
+            aria-label="Local do gasto; clique no mapa ou arraste para ajustar"
+            role="img"
+          >
+            <MapPin className="size-4.5 stroke-[1.8]" />
           </span>
         </MarkerContent>
       </MapMarker>

@@ -1,0 +1,80 @@
+name: Deploy UI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ui/**"
+      - ".github/workflows/deploy-ui.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ui
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create production environment file
+        uses: SpicyPizza/create-envfile@v2.0
+        with:
+          envkey_VITE_API_URL: ${{ vars.UI_VITE_API_URL }}
+          envkey_VITE_SYSTEM: ${{ vars.UI_VITE_SYSTEM }}
+          envkey_VITE_MAP_STYLE_SATELLITE_URL: ${{ vars.UI_VITE_MAP_STYLE_SATELLITE_URL }}
+          file_name: .env.production
+          directory: ui
+          fail_on_empty: false
+          sort_keys: false
+
+      - name: Build UI
+        run: npm run build:prod
+
+      - name: Package release
+        run: tar -czf ../ui-release.tar.gz -C dist .
+
+      - name: Upload release
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ vars.VPS_SSH_PORT || 22 }}
+          source: ui-release.tar.gz
+          target: /tmp
+
+      - name: Install UI release
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          VPS_UI_PATH: ${{ vars.VPS_UI_PATH || '/opt/nummo/ui' }}
+          RELEASE_FILE: /tmp/ui-release.tar.gz
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ vars.VPS_SSH_PORT || 22 }}
+          envs: VPS_UI_PATH,RELEASE_FILE
+          script_stop: true
+          script: |
+            set -eu
+            mkdir -p "$VPS_UI_PATH"
+            find "$VPS_UI_PATH" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+            tar -xzf "$RELEASE_FILE" -C "$VPS_UI_PATH"
+            rm -f "$RELEASE_FILE"

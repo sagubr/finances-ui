@@ -84,6 +84,7 @@ export const recurringRuleSchema = z.object({
 export const creditCardSchema = z.object({
   id,
   name: z.string(),
+  brand: z.enum(['VISA', 'MASTERCARD', 'ELO', 'AMEX', 'HIPERCARD', 'OTHER']).nullable(),
   lastFour: z.string().nullable(),
   paymentAccountId: id.nullable(),
   currency: z.string().length(3),

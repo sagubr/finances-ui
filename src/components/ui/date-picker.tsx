@@ -310,7 +310,7 @@ export function DatePicker({
                 <Button
                   variant="outline"
                   className={cn(
-                    'h-9 w-full justify-start text-left font-normal',
+                    'border-border bg-background hover:border-ring/60 hover:bg-background data-[popup-open]:border-ring data-[popup-open]:ring-ring/30 h-9 w-full justify-start text-left font-normal shadow-sm transition-[border-color,box-shadow,background-color] duration-200 hover:shadow-md data-[popup-open]:shadow-md data-[popup-open]:ring-3',
                     !date && 'text-foreground/70',
                     removeWidthClasses(className),
                   )}
@@ -610,7 +610,7 @@ export function DateRangePicker({
                 <Button
                   variant="outline"
                   className={cn(
-                    'h-9 w-full justify-start text-left font-normal',
+                    'border-border bg-background hover:border-ring/60 hover:bg-background data-[popup-open]:border-ring data-[popup-open]:ring-ring/30 h-9 w-full justify-start text-left font-normal shadow-sm transition-[border-color,box-shadow,background-color] duration-200 hover:shadow-md data-[popup-open]:shadow-md data-[popup-open]:ring-3',
                     !range?.from && 'text-foreground/70',
                     removeWidthClasses(className),
                   )}

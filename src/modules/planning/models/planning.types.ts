@@ -57,6 +57,7 @@ export type RecurringRule = {
 export type CreditCard = {
   id: string
   name: string
+  brand: 'VISA' | 'MASTERCARD' | 'ELO' | 'AMEX' | 'HIPERCARD' | 'OTHER' | null
   lastFour: string | null
   paymentAccountId: string | null
   currency: string

@@ -22,3 +22,19 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+## Deploy pelo GitHub Actions
+
+O workflow [`deploy-ui.yml`](../.github/workflows/deploy-ui.yml) gera o `.env.production` com
+`SpicyPizza/create-envfile`, executa o build de produção e envia o conteúdo de `dist` para
+`/opt/nummo/ui`.
+
+Configure como **Variables**:
+
+- `UI_VITE_API_URL`;
+- `UI_VITE_SYSTEM`;
+- `UI_VITE_MAP_STYLE_SATELLITE_URL` (opcional);
+- `VPS_SSH_PORT` (opcional, padrão `22`);
+- `VPS_UI_PATH` (opcional, padrão `/opt/nummo/ui`).
+
+O workflow usa também os **Secrets** compartilhados `VPS_HOST`, `VPS_USERNAME` e `VPS_SSH_KEY`.

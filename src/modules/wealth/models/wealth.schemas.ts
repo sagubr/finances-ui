@@ -8,11 +8,11 @@ import { z } from 'zod'
 import type {
   Asset,
   Instrument,
-  InvestmentAccount,
   InvestmentOrder,
   NetWorth,
   Page,
   Position,
+  PositionPage,
 } from './wealth.types'
 
 const id = publicIdSchema
@@ -22,14 +22,6 @@ const date = civilDateSchema
 const pageInfo = pageInfoSchema
 const page = <T extends z.ZodType>(item: T) => z.object({ items: z.array(item), pageInfo })
 
-export const investmentAccountSchema = z.object({
-  id,
-  name: z.string(),
-  currency: z.string().length(3),
-  active: z.boolean(),
-  version: z.number().int().positive(),
-}) satisfies z.ZodType<InvestmentAccount>
-
 export const instrumentSchema = z.object({
   id,
   symbol: z.string(),
@@ -37,11 +29,12 @@ export const instrumentSchema = z.object({
   name: z.string(),
   currency: z.string().length(3),
   type: z.enum(['STOCK', 'ETF', 'FUND', 'BOND', 'CRYPTO', 'CURRENCY', 'OTHER']),
+  logoUrl: z.string().url().nullable(),
 }) satisfies z.ZodType<Instrument>
 
 export const orderSchema = z.object({
   id,
-  investmentAccountId: id,
+  accountId: id,
   instrumentId: id,
   side: z.enum(['BUY', 'SELL']),
   quantity: decimal,
@@ -53,15 +46,31 @@ export const orderSchema = z.object({
 }) satisfies z.ZodType<InvestmentOrder>
 
 export const positionSchema = z.object({
-  investmentAccountId: id,
+  accountId: id,
   instrumentId: id,
+  orderId: id.nullable(),
+  orderVersion: z.number().int().positive().nullable(),
+  orderQuantity: decimal.nullable(),
+  orderUnitPrice: decimal.nullable(),
+  orderFees: decimal.nullable(),
+  orderTradedOn: date.nullable(),
   symbol: z.string(),
   name: z.string(),
   quantity: decimal,
   averageCost: decimal,
   totalCost: decimal,
+  currency: z.string().length(3),
+  logoUrl: z.string().url().nullable(),
   latestPrice: decimal.nullable(),
+  currentValue: decimal.nullable(),
+  unrealizedResult: decimal.nullable(),
+  unrealizedPercent: decimal.nullable(),
+  dayChange: decimal.nullable(),
+  dayChangePercent: decimal.nullable(),
+  quoteProvider: z.string().nullable(),
   quoteAt: z.string().datetime().nullable(),
+  quoteIngestedAt: z.string().datetime().nullable(),
+  quoteStale: z.boolean(),
 }) satisfies z.ZodType<Position>
 
 export const assetSchema = z.object({
@@ -93,9 +102,17 @@ export const netWorthSchema = z.object({
   calculatedAt: z.string().datetime(),
 }) satisfies z.ZodType<NetWorth>
 
-export const investmentAccountPageSchema = page(investmentAccountSchema) satisfies z.ZodType<
-  Page<InvestmentAccount>
->
 export const instrumentPageSchema = page(instrumentSchema) satisfies z.ZodType<Page<Instrument>>
-export const positionPageSchema = page(positionSchema) satisfies z.ZodType<Page<Position>>
+export const positionPageSchema = page(positionSchema).extend({
+  summaries: z.array(
+    z.object({
+      currency: z.string().length(3),
+      invested: decimal,
+      current: decimal,
+      result: decimal,
+      positionCount: z.number().int().nonnegative(),
+      quotedPositions: z.number().int().nonnegative(),
+    }),
+  ),
+}) satisfies z.ZodType<PositionPage>
 export const assetPageSchema = page(assetSchema) satisfies z.ZodType<Page<Asset>>

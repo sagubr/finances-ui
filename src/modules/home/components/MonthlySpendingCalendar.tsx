@@ -251,12 +251,12 @@ export const MonthlySpendingCalendar = memo(function MonthlySpendingCalendar({
                 className="w-full [--cell-size:--spacing(10)]"
                 classNames={{
                   month: 'w-full',
-                  month_grid: 'block w-full border-collapse',
-                  weekdays: 'grid w-full grid-cols-7',
-                  weekday: 'w-auto',
-                  weeks: 'block w-full',
-                  week: 'grid w-full grid-cols-7',
-                  day: 'h-16 w-auto p-0.5 sm:h-[4.5rem]',
+                  month_grid: 'w-full table-fixed border-collapse',
+                  weekdays: 'table-row',
+                  weekday: 'w-[14.285%] p-0 text-center',
+                  weeks: 'table-row-group',
+                  week: 'table-row',
+                  day: 'h-16 w-[14.285%] p-0.5 align-top sm:h-[4.5rem]',
                   day_button: 'h-full w-full',
                 }}
               />

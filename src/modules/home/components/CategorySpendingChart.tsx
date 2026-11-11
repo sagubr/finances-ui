@@ -122,7 +122,7 @@ export const CategorySpendingChart = memo(function CategorySpendingChart({
                     className="text-muted"
                   />
                   {slices.map((slice) => (
-                    <Tooltip key={slice.categoryId}>
+                    <Tooltip key={`${slice.categoryId}-${slice.colorValue}`}>
                       <TooltipTrigger
                         render={
                           <circle
@@ -132,6 +132,7 @@ export const CategorySpendingChart = memo(function CategorySpendingChart({
                             pathLength="100"
                             fill="none"
                             stroke={slice.colorValue}
+                            style={{ stroke: slice.colorValue }}
                             strokeWidth="20"
                             strokeDasharray={slice.dashArray}
                             strokeDashoffset={slice.dashOffset}

@@ -1,7 +1,7 @@
 import { MutationErrorMessage } from '@/components/MutationErrorMessage'
 import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { MoneyInput } from '@/components/ui/money-input'
 import { SearchableSelect } from '@/components/ui/searchable-select'
@@ -16,6 +16,8 @@ import { usePlanningMutation } from '../queries/planning.queries'
 
 const creditCardFormSchema = z.object({
   name: z.string().trim().min(1).max(120),
+  brand: z.enum(['VISA', 'MASTERCARD', 'ELO', 'AMEX', 'HIPERCARD', 'OTHER']),
+  lastFour: z.union([z.literal(''), z.string().regex(/^\d{4}$/, 'Informe exatamente 4 dígitos.')]),
   limit: z.string().regex(/^\d+([,.]\d{1,2})?$/),
   closingDay: z.number().int().min(1).max(31),
   dueDay: z.number().int().min(1).max(31),
@@ -43,6 +45,8 @@ export const CreditCardForm = ({
   const form = useForm({
     defaultValues: {
       name: card?.name ?? '',
+      brand: card?.brand ?? ('VISA' as const),
+      lastFour: card?.lastFour ?? '',
       limit: formatCentsForInput(card?.limitCents),
       closingDay: card?.closingDay ?? 5,
       dueDay: card?.dueDay ?? 12,
@@ -57,6 +61,8 @@ export const CreditCardForm = ({
       if (!limitCents || !value.name.trim() || !paymentAccount) return
       const input = {
         name: value.name,
+        brand: value.brand,
+        lastFour: value.lastFour || undefined,
         limitCents,
         closingDay: value.closingDay,
         dueDay: value.dueDay,
@@ -101,6 +107,48 @@ export const CreditCardForm = ({
             />
           </Field>
         )}
+      </form.Field>
+      <form.Field name="brand">
+        {(field) => (
+          <Field>
+            <FieldLabel htmlFor={`card-${field.name}`}>Bandeira</FieldLabel>
+            <SearchableSelect
+              id={`card-${field.name}`}
+              value={field.state.value}
+              onValueChange={(value) =>
+                field.handleChange(value as NonNullable<CreditCard['brand']>)
+              }
+              options={[
+                { value: 'VISA', label: 'Visa' },
+                { value: 'MASTERCARD', label: 'Mastercard' },
+                { value: 'ELO', label: 'Elo' },
+                { value: 'AMEX', label: 'American Express' },
+                { value: 'HIPERCARD', label: 'Hipercard' },
+                { value: 'OTHER', label: 'Outra' },
+              ]}
+            />
+          </Field>
+        )}
+      </form.Field>
+      <form.Field name="lastFour">
+        {(field) => {
+          const invalid = !field.state.meta.isValid
+          return (
+            <Field data-invalid={invalid}>
+              <FieldLabel htmlFor={`card-${field.name}`}>Últimos 4 dígitos</FieldLabel>
+              <Input
+                id={`card-${field.name}`}
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="1234"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value.replace(/\D/g, ''))}
+              />
+              {invalid && <FieldError errors={field.state.meta.errors} />}
+            </Field>
+          )
+        }}
       </form.Field>
       <form.Field name="closingDay">
         {(field) => (

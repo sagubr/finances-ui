@@ -214,6 +214,7 @@ export const InstallmentForm = ({
                     <SearchableSelect
                       id={field.name}
                       value={field.state.value}
+                      disabled={Boolean(plan)}
                       onValueChange={field.handleChange}
                       placeholder="Selecione um cartão"
                       options={(cards.data?.items ?? [])
@@ -290,21 +291,27 @@ export const InstallmentForm = ({
           )
         }}
       </form.Field>
-      <form.Field name="firstDueOn">
-        {(field) => {
-          const invalid = !field.state.meta.isValid
-          return (
-            <Field data-invalid={invalid}>
-              <FieldLabel>Data da primeira parcela</FieldLabel>
-              <DatePicker
-                value={parseCivilDate(field.state.value)}
-                onChange={(value) => value && field.handleChange(toCivilDate(value))}
-              />
-              {invalid && <FieldError errors={field.state.meta.errors} />}
-            </Field>
-          )
-        }}
-      </form.Field>
+      <form.Subscribe selector={(state) => state.values.target}>
+        {(target) => (
+          <form.Field name="firstDueOn">
+            {(field) => {
+              const invalid = !field.state.meta.isValid
+              return (
+                <Field data-invalid={invalid}>
+                  <FieldLabel>
+                    {target === 'CARD' ? 'Data da compra' : 'Data da primeira parcela'}
+                  </FieldLabel>
+                  <DatePicker
+                    value={parseCivilDate(field.state.value)}
+                    onChange={(value) => value && field.handleChange(toCivilDate(value))}
+                  />
+                  {invalid && <FieldError errors={field.state.meta.errors} />}
+                </Field>
+              )
+            }}
+          </form.Field>
+        )}
+      </form.Subscribe>
       <div className="sm:col-span-2">
         <MutationErrorMessage
           error={mutation.error}

@@ -110,8 +110,8 @@ const ExpenseMarkerLayer = ({
 }>) => {
   const { resolvedTheme } = useMap()
   const clusterColors: [string, string, string] =
-    resolvedTheme === 'dark' ? ['#34d399', '#10b981', '#047857'] : ['#22c55e', '#15803d', '#14532d']
-  const pointColor = resolvedTheme === 'dark' ? '#34d399' : '#27845a'
+    resolvedTheme === 'dark' ? ['#a1a1aa', '#71717a', '#52525b'] : ['#71717a', '#52525b', '#3f3f46']
+  const pointColor = resolvedTheme === 'dark' ? '#d4d4d8' : '#52525b'
 
   return (
     <MapClusterLayer
@@ -122,7 +122,6 @@ const ExpenseMarkerLayer = ({
       clusterValueProperty="amountCents"
       clusterValueCurrency={currency}
       pointColor={pointColor}
-      pointColorProperty="categoryColor"
       pointLabelProperty="amountLabel"
       pointSelectedProperty="selected"
       pointHoveredProperty="hovered"

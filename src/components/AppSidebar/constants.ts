@@ -1,6 +1,16 @@
 import type { FileRouteTypes } from '@/routeTree.gen'
 import type { LucideIcon } from 'lucide-react'
-import { BarChart3, House, Landmark, ReceiptText, Settings, Tags, WalletCards } from 'lucide-react'
+import {
+  BarChart3,
+  ChartCandlestick,
+  House,
+  Landmark,
+  ReceiptText,
+  Settings,
+  Sparkles,
+  Tags,
+  WalletCards,
+} from 'lucide-react'
 
 export type NavItem = {
   id: string
@@ -69,6 +79,24 @@ export const NAVIGATION_MODULES = [
       { id: 'financial-accounts', title: 'Contas', url: '/accounts', icon: Landmark },
       { id: 'financial-categories', title: 'Categorias', url: '/categories', icon: Tags },
     ],
+  }),
+  module({
+    id: 'wishlist',
+    title: 'Lista de desejos',
+    url: '/wishlist',
+    icon: Sparkles,
+    group: 'finance',
+    sidebar: { visible: true, order: 47 },
+    mobile: { placement: 'more', order: 5 },
+  }),
+  module({
+    id: 'investments',
+    title: 'Investimentos',
+    url: '/positions',
+    icon: ChartCandlestick,
+    group: 'finance',
+    sidebar: { visible: true, order: 48 },
+    mobile: { placement: 'more', order: 7 },
   }),
   module({
     id: 'reports',

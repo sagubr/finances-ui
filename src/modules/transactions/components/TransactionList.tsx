@@ -83,6 +83,8 @@ const cashFlowType = (type: Transaction['type']): CashFlowType | null => {
 }
 
 const signedAmount = (transaction: Transaction) => {
+  if (isStatementProjection(transaction))
+    return formatMoney(transaction.amountCents, transaction.currency)
   const flow = cashFlowType(transaction.type)
   const prefix = flow === 'INCOME' ? '+ ' : flow === 'EXPENSE' ? '− ' : ''
   return `${prefix}${formatMoney(transaction.amountCents, transaction.currency)}`
@@ -171,6 +173,8 @@ export const TransactionList = ({
         header: 'Tipo',
         size: 140,
         cell: ({ row }) => {
+          if (isStatementProjection(row.original))
+            return <Badge variant="outline">Fatura planejada</Badge>
           const flow = cashFlowType(row.original.type)
           return flow ? (
             <FinancialTypeBadge type={flow} />
@@ -195,9 +199,12 @@ export const TransactionList = ({
           <span
             className={cn(
               'font-semibold tabular-nums',
+              isStatementProjection(row.original) && 'text-foreground',
               cashFlowType(row.original.type) === 'INCOME' &&
                 'text-emerald-600 dark:text-emerald-300',
-              cashFlowType(row.original.type) === 'EXPENSE' && 'text-destructive',
+              cashFlowType(row.original.type) === 'EXPENSE' &&
+                !isStatementProjection(row.original) &&
+                'text-destructive',
             )}
           >
             {signedAmount(row.original)}
@@ -396,11 +403,13 @@ export const TransactionList = ({
               size="sm"
               className={cn(
                 'flex flex-col justify-between border-l-4 transition-all hover:shadow-xs',
-                cashFlowType(transaction.type) === 'INCOME'
-                  ? 'border-l-emerald-500 hover:border-emerald-500'
-                  : cashFlowType(transaction.type) === 'EXPENSE'
-                    ? 'border-l-destructive hover:border-destructive'
-                    : 'border-l-muted-foreground/30 hover:border-l-primary',
+                isStatementProjection(transaction)
+                  ? 'border-l-slate-400 hover:border-slate-400'
+                  : cashFlowType(transaction.type) === 'INCOME'
+                    ? 'border-l-emerald-500 hover:border-emerald-500'
+                    : cashFlowType(transaction.type) === 'EXPENSE'
+                      ? 'border-l-destructive hover:border-destructive'
+                      : 'border-l-muted-foreground/30 hover:border-l-primary',
               )}
             >
               <CardHeader className="space-y-2">
@@ -419,11 +428,13 @@ export const TransactionList = ({
                   <ReceiptText
                     className={cn(
                       'mt-0.5 size-3.5 shrink-0',
-                      cashFlowType(transaction.type) === 'INCOME'
-                        ? 'text-emerald-600 dark:text-emerald-300'
-                        : cashFlowType(transaction.type) === 'EXPENSE'
-                          ? 'text-destructive'
-                          : 'text-primary',
+                      isStatementProjection(transaction)
+                        ? 'text-muted-foreground'
+                        : cashFlowType(transaction.type) === 'INCOME'
+                          ? 'text-emerald-600 dark:text-emerald-300'
+                          : cashFlowType(transaction.type) === 'EXPENSE'
+                            ? 'text-destructive'
+                            : 'text-primary',
                     )}
                   />
                   <div className="min-w-0">
@@ -431,7 +442,11 @@ export const TransactionList = ({
                       {transaction.description}
                     </CardTitle>
                     <div className="mt-1">
-                      {cashFlowType(transaction.type) ? (
+                      {isStatementProjection(transaction) ? (
+                        <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                          Fatura planejada
+                        </Badge>
+                      ) : cashFlowType(transaction.type) ? (
                         <FinancialTypeBadge
                           type={cashFlowType(transaction.type) as CashFlowType}
                           className="h-5 px-1.5 text-[10px]"
@@ -451,7 +466,9 @@ export const TransactionList = ({
                     'truncate text-lg font-semibold tabular-nums',
                     cashFlowType(transaction.type) === 'INCOME' &&
                       'text-emerald-600 dark:text-emerald-300',
-                    cashFlowType(transaction.type) === 'EXPENSE' && 'text-destructive',
+                    cashFlowType(transaction.type) === 'EXPENSE' &&
+                      !isStatementProjection(transaction) &&
+                      'text-destructive',
                   )}
                 >
                   {signedAmount(transaction)}
