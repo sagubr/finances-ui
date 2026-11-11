@@ -25,7 +25,7 @@ npm run build
 
 ## Deploy pelo GitHub Actions
 
-O workflow [`deploy-ui.yml`](../.github/workflows/deploy-ui.yml) gera o `.env.production` com
+O workflow [`deploy-ui.yml`](.github/workflows/deploy-ui.yml) gera o `.env.production` com
 `SpicyPizza/create-envfile`, executa o build de produção e envia o conteúdo de `dist` para
 `/opt/nummo/ui`.
 

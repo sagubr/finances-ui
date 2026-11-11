@@ -3,9 +3,6 @@ name: Deploy UI
 on:
   push:
     branches: [main]
-    paths:
-      - "ui/**"
-      - ".github/workflows/deploy-ui.yml"
   workflow_dispatch:
 
 concurrency:
@@ -15,9 +12,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ui
 
     steps:
       - name: Checkout
@@ -28,7 +22,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: ui/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -40,7 +34,7 @@ jobs:
           envkey_VITE_SYSTEM: ${{ vars.UI_VITE_SYSTEM }}
           envkey_VITE_MAP_STYLE_SATELLITE_URL: ${{ vars.UI_VITE_MAP_STYLE_SATELLITE_URL }}
           file_name: .env.production
-          directory: ui
+          directory: .
           fail_on_empty: false
           sort_keys: false
 
@@ -48,7 +42,7 @@ jobs:
         run: npm run build:prod
 
       - name: Package release
-        run: tar -czf ../ui-release.tar.gz -C dist .
+        run: tar -czf ui-release.tar.gz -C dist .
 
       - name: Upload release
         uses: appleboy/scp-action@v0.1.7
